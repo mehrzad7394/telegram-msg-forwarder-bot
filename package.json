@@ -1,0 +1,20 @@
+{
+  "name": "telegram-msg-forwarder-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:frontend": "pnpm --filter telegram-forwarder-front dev",
+    "dev:backend": "pnpm --filter telegram-forwarder-backend start:dev",
+    "dev:all": "concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.20.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3"
+  }
+}
