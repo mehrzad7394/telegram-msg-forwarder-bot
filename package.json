@@ -2,7 +2,12 @@
   "name": "telegram-msg-forwarder-bot",
   "version": "1.0.0",
   "description": "",
+  "private": true,
   "main": "index.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev:frontend": "pnpm --filter telegram-forwarder-front dev",
     "dev:backend": "pnpm --filter telegram-forwarder-backend start:dev",
