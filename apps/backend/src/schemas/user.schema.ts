@@ -2,15 +2,22 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { UserRoles } from '../../../../packages/types';
 
-export type UserDocument = User & Document;
-
 @Schema({ timestamps: true })
-export class User {
+export class User extends Document {
   @Prop({ required: true, unique: true })
-  chatId!: string; // Telegram user id as string
+  telegramId!: string;
 
-  @Prop({ default: UserRoles.admin, enum: UserRoles })
+  @Prop()
+  username?: string;
+
+  @Prop({ required: true, enum: UserRoles, default: UserRoles.USER })
   role!: UserRoles;
+
+  @Prop({ default: true })
+  isActive!: boolean;
+
+  @Prop()
+  createdAt!: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

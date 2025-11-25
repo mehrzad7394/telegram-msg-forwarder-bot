@@ -1,28 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { FilterAction } from '../../../../packages/types/enums/FilterActions';
+import { FilterActions } from '../../../../packages/types/enums/FilterActions';
 import { Document } from 'mongoose';
 
-export type FilterDocument = Filter & Document;
-
 @Schema({ timestamps: true })
-export class Filter {
+export class Filter extends Document {
   @Prop({ required: true })
-  name!: string; // e.g., "bad-words", "marketing"
+  name!: string;
 
   @Prop({ required: true })
-  match!: string; // substring or regex string
+  pattern!: string;
 
-  @Prop({ required: true, enum: FilterAction })
-  action!: FilterAction;
+  @Prop({ required: true, enum: FilterActions })
+  action!: FilterActions;
 
   @Prop()
-  replaceWith?: string; // used for 'replace' or 'addStart'/'addEnd'
+  replacement?: string;
 
   @Prop({ default: false })
-  caseInsensitive?: boolean;
+  isRegex!: boolean;
 
-  @Prop({ default: false })
-  useRegex?: boolean;
+  @Prop({ default: true })
+  isActive!: boolean;
+
+  @Prop()
+  createdAt!: Date;
 }
 
 export const FilterSchema = SchemaFactory.createForClass(Filter);
