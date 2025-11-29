@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class FiltersService {
-  getHello(): string {
+  async loadFilters() {
+    return 'Hello World!';
+  }
+  async clearCache() {
     return 'Hello World!';
   }
 }
