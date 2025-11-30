@@ -1,5 +1,7 @@
+import { FilterActions } from '@monorepo/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { FiltersService } from 'src/filters/filters.service';
+import { Filter } from 'src/schemas/filters.schema';
 
 @Injectable()
 export class MessageProcessorService {
@@ -11,9 +13,88 @@ export class MessageProcessorService {
   async processMessage(text: string): Promise<string> {
     let processedText = text;
     //get active filters
-    const filters=await this.filtersService.getActiveFilters()
-    for (const filter of filters){
-      processedText=await
+    const filters = await this.filtersService.getActiveFilters();
+    for (const filter of filters) {
+      processedText = await this.applyFilter(processedText, filter);
     }
+    return processedText;
+  }
+
+  private async applyFilter(text: string, filter: Filter): Promise<string> {
+    try {
+      switch (filter.action) {
+        case FilterActions.REMOVE_WORD:
+          return this.removeWord(text, filter);
+        case FilterActions.REPLACE_WORD:
+          return this.replaceWord(text, filter);
+
+        case FilterActions.REMOVE_LINE:
+          return this.removeLine(text, filter);
+
+        case FilterActions.REPLACE_LINE:
+          return this.replaceLine(text, filter);
+
+        case FilterActions.REMOVE_URL:
+          return this.removeUrls(text);
+
+        case FilterActions.REGEX_REPLACE:
+          return this.regexReplace(text, filter);
+        default:
+          return text;
+      }
+    } catch (error) {
+      this.logger.error(`Error applying filter ${filter.name}:`, error);
+      return text;
+    }
+  }
+
+  private removeWord(text: string, filter: Filter): string {
+    const pattern = filter.isRegex
+      ? new RegExp(filter.pattern, 'gi')
+      : new RegExp(this.escapeRegex(filter.pattern), 'gi');
+    return text.replace(pattern, '');
+  }
+  private replaceWord(text: string, filter: Filter): string {
+    const pattern = filter.isRegex
+      ? new RegExp(filter.pattern, 'gi')
+      : new RegExp(this.escapeRegex(filter.pattern), 'gi');
+    return text.replace(pattern, filter.replacement || '');
+  }
+  private removeLine(text: string, filter: Filter): string {
+    const lines = text.split('\n');
+    const pattern = filter.isRegex
+      ? new RegExp(filter.pattern, 'i')
+      : new RegExp(this.escapeRegex(filter.pattern), 'i');
+    return lines.filter((line) => !pattern.test(line)).join('\n');
+  }
+  private replaceLine(text: string, filter: Filter): string {
+    const lines = text.split('\n');
+    const pattern = filter.isRegex
+      ? new RegExp(filter.pattern, 'i')
+      : new RegExp(this.escapeRegex(filter.pattern), 'i');
+
+    return lines
+      .map((line) => (pattern.test(line) ? filter.replacement || '' : line))
+      .join('\n');
+  }
+  private removeUrls(text: string): string {
+    return text
+      .split('\n')
+      .filter(
+        (line) => !this.urlRegex.test(line) && !this.mentionRegex.test(line),
+      )
+      .join('\n');
+  }
+  private regexReplace(text: string, filter: Filter): string {
+    try {
+      const regex = new RegExp(filter.pattern, 'gi');
+      return text.replace(regex, filter.replacement || '');
+    } catch (error) {
+      this.logger.error(`Invalid regex pattern: ${filter.pattern}`, error);
+      return text;
+    }
+  }
+  private escapeRegex(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
