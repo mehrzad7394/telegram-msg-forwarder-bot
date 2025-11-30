@@ -9,7 +9,13 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@types/shared": ["packages/types/*"]
+      "@monorepo/types": ["./packages/types/index.ts"],
+      "@packages/*": ["./packages/*"]
     }
-  }
+  },
+  "include": [
+    "apps/frontend/src/**/*",
+    "apps/backend/src/**/*",
+    "packages/types/**/*"
+  ]
 }
