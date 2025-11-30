@@ -17,7 +17,7 @@ export class CreateFilterDto {
   @IsString()
   @IsOptional()
   @ValidateIf(
-    (o) =>
+    (o: CreateFilterDto) =>
       o.action === FilterActions.REMOVE_WORD ||
       o.action === FilterActions.REMOVE_LINE ||
       o.action === FilterActions.REGEX_REPLACE,

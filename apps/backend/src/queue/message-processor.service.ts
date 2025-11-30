@@ -10,17 +10,17 @@ export class MessageProcessorService {
   private readonly mentionRegex = /@[a-zA-Z0-9_]+/g;
   constructor(private readonly filtersService: FiltersService) {}
 
-  async processMessage(text: string): Promise<string> {
+  processMessage(text: string): string {
     let processedText = text;
     //get active filters
-    const filters = await this.filtersService.getActiveFilters();
+    const filters = this.filtersService.getActiveFilters();
     for (const filter of filters) {
-      processedText = await this.applyFilter(processedText, filter);
+      processedText = this.applyFilter(processedText, filter);
     }
     return processedText;
   }
 
-  private async applyFilter(text: string, filter: Filter): Promise<string> {
+  private applyFilter(text: string, filter: Filter): string {
     try {
       switch (filter.action) {
         case FilterActions.REMOVE_WORD:

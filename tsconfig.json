@@ -10,6 +10,7 @@
     "baseUrl": ".",
     "paths": {
       "@monorepo/types": ["./packages/types/index.ts"],
+      "@monorepo/utils": ["./packages/utils/index.ts"],
       "@packages/*": ["./packages/*"]
     }
   },

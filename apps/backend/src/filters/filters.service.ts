@@ -4,7 +4,6 @@ import { Model } from 'mongoose';
 import { Filter } from 'src/schemas/filters.schema';
 import { CreateFilterDto, UpdateFilterDto } from './dto/filter.dto';
 import { FilterActions } from '@monorepo/types';
-import { MessageProcessorService } from 'src/queue/message-processor.service';
 
 @Injectable()
 export class FiltersService implements OnModuleInit {
@@ -77,25 +76,5 @@ export class FiltersService implements OnModuleInit {
   }
   async getFiltersByAction(action: FilterActions): Promise<Filter[]> {
     return this.filterModel.find({ action, isActive: true }).exec();
-  }
-  async testFilter(
-    text: string,
-    filterPattern: string,
-    action: FilterActions,
-    isRegex: boolean = false,
-  ): Promise<string> {
-    const tempFilter = {
-      pattern: filterPattern,
-      action,
-      isRegex,
-      replacement:
-        action === FilterActions.REPLACE_WORD ||
-        action === FilterActions.REPLACE_LINE ||
-        action === FilterActions.REGEX_REPLACE
-          ? '[REPLACED]'
-          : undefined,
-    };
-    const messageProcessor = new MessageProcessorService(this as any);
-    return messageProcessor.applyFilter(text, tempFilter);
   }
 }
