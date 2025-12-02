@@ -5,7 +5,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import * as bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
+import { JWTPayload, UserProfile } from 'src/types/auth.type';
 
 @Injectable()
 export class AuthService {
@@ -14,9 +15,10 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
-  async validateUser(telegramId: string, password: string): Promise<any> {
-    // For admin login, we'll use a different approach
-    // Admin users will have a password hash stored
+  async validateUser(
+    telegramId: string,
+    password: string,
+  ): Promise<Omit<UserProfile, 'passwordHash'> | null> {
     const user = await this.userModel
       .findOne({
         telegramId,
@@ -24,16 +26,13 @@ export class AuthService {
       })
       .exec();
 
-    if (user && user['passwordHash']) {
-      const isPasswordValid = await bcrypt.compare(
-        password,
-        user['passwordHash'],
-      );
+    if (user && user.passwordHash) {
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (isPasswordValid) {
-        const { passwordHash, ...result } = user.toObject();
-        return result;
+        const { passwordHash: _, ...result } = user.toObject();
+        return result as Omit<UserProfile, 'passwordHash'>;
       }
-    }
+    }b
     return null;
   }
   async setAdminPassword(telegramId: string, password: string): Promise<void> {
@@ -47,7 +46,7 @@ export class AuthService {
       passwordHash,
     });
   }
-  login(user: any) {
+  login(user: User) {
     const payload = {
       telegramId: user.telegramId,
       sub: user._id,
@@ -63,7 +62,7 @@ export class AuthService {
       },
     };
   }
-  async validateJwtPayload(payload: any) {
+  async validateJwtPayload(payload: JWTPayload) {
     const user = await this.usersService.findByTelegramId(payload.telegramId);
     if (!user || !user.isActive) {
       return null;

@@ -10,15 +10,13 @@ export class User extends Document {
   @Prop()
   username?: string;
 
-  @Prop({ required: true })
-  passwordHash!: string;
-
   @Prop({ required: true, enum: UserRoles, default: UserRoles.USER })
   role!: UserRoles;
 
   @Prop({ default: true })
   isActive!: boolean;
-
+  @Prop() // Only for admin login via dashboard
+  passwordHash?: string;
   @Prop()
   createdAt!: Date;
 }
