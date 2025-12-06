@@ -29,10 +29,11 @@ export class AuthService {
     if (user && user.passwordHash) {
       const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
       if (isPasswordValid) {
-        const { passwordHash: _, ...result } = user.toObject();
-        return result as Omit<UserProfile, 'passwordHash'>;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { passwordHash, ...result } = user.toObject();
+        return result as unknown as Omit<UserProfile, 'passwordHash'>;
       }
-    }b
+    }
     return null;
   }
   async setAdminPassword(telegramId: string, password: string): Promise<void> {
