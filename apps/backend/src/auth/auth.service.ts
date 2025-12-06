@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import bcrypt from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { JWTPayload, UserProfile } from 'src/types/auth.type';
 
 @Injectable()
@@ -27,7 +27,7 @@ export class AuthService {
       .exec();
 
     if (user && user.passwordHash) {
-      const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+      const isPasswordValid = await compare(password, user.passwordHash);
       if (isPasswordValid) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { passwordHash, ...result } = user.toObject();
@@ -42,7 +42,17 @@ export class AuthService {
       throw new UnauthorizedException('Only admin users can set password');
     }
     const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    let passwordHash: string;
+    try {
+      passwordHash = await (
+        hash as unknown as (
+          data: string,
+          saltOrRounds: number,
+        ) => Promise<string>
+      )(password, saltRounds);
+    } catch {
+      throw new UnauthorizedException('Failed to hash password');
+    }
     await this.userModel.findByIdAndUpdate(user._id, {
       passwordHash,
     });
