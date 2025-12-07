@@ -2,7 +2,6 @@ import { Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Telegraf } from 'telegraf';
 import { TelegramService } from './telegram.service';
-import { TelegramController } from './telegram.controller';
 import { UsersModule } from '../users/users.module';
 import { FiltersModule } from '../filters/filters.module';
 import { QueueModule } from '../queue/queue.module';
@@ -27,7 +26,6 @@ import { TelegramConfig } from './telegram.config';
       inject: [TelegramConfig],
     },
   ],
-  controllers: [TelegramController],
   exports: [TelegramService],
 })
 export class TelegramModule implements OnModuleInit, OnModuleDestroy {
@@ -38,7 +36,7 @@ export class TelegramModule implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     await this.telegramService.launchBot();
   }
-  async onModuleDestroy() {
-    await this.telegramService.stopBot();
+  onModuleDestroy() {
+    this.telegramService.stopBot();
   }
 }

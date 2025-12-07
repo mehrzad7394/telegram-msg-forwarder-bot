@@ -10,14 +10,15 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
+
 import { FiltersService } from './filters.service';
 import { Roles } from '../auth/roles.decorator';
 import { UserRoles } from '@monorepo/types';
 import { CreateFilterDto, UpdateFilterDto } from './dto/filter.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
 @Controller('filters')
-@UseGuards(JwtAuthGaurd, RolesGaurd)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class FiltersController {
   constructor(private readonly filtersService: FiltersService) {}
   @Get()

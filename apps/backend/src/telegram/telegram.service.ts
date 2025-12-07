@@ -7,11 +7,16 @@ import { ChannelsService } from '../channels/channels.service';
 import { MessageProcessorService } from '../queue/message-processor.service';
 import { UserRoles } from '../../../../packages/types/enums/UserRoles';
 import { User } from 'src/schemas/user.schema';
+import { TelegramConfig } from './telegram.config';
+import { Channel } from 'src/schemas/channel.schema';
 
 @Injectable()
 export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
   private bot: Telegraf<Context>;
+  private activeChannel: Channel = null;
+  private users = new Map<string, { user: User }>();
+
   constructor(
     @Inject('TELEGRAF_BOT') bot: Telegraf<Context>,
     private readonly usersService: UsersService,
@@ -19,9 +24,11 @@ export class TelegramService {
     private readonly queueService: QueueService,
     private readonly channelsService: ChannelsService,
     private readonly messageProcessor: MessageProcessorService,
+    private readonly telegramConfig: TelegramConfig,
   ) {
     this.bot = bot;
     this.setupHandlers();
+    const users = this.usersService.findAll();
   }
   private setupHandlers() {
     //start command
@@ -137,10 +144,10 @@ export class TelegramService {
     }
     try {
       // Check if bot is admin in channel
-      const botId = process.env.BOT_TOKEN.split(':')[0];
+      const botId = this.telegramConfig.getToken();
       const chatMember = await ctx.telegram.getChatMember(
         channel.channelId,
-        botId,
+        Number(botId),
       );
       const isAdmin = ['administrator', 'creator'].includes(chatMember.status);
       await this.channelsService.updateBotAdminStatus(
@@ -177,7 +184,7 @@ export class TelegramService {
     }
     // Reset channel and clear data
     await this.channelsService.deactivateAll();
-    await this.filtersService.clearCache();
+    this.filtersService.clearCache();
     await ctx.reply(
       '🛑 Bot has been stopped and reset. Send /start to begin again.',
     );

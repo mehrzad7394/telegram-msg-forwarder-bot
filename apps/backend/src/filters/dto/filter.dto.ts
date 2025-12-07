@@ -47,6 +47,12 @@ export class UpdateFilterDto {
 
   @IsString()
   @IsOptional()
+  @ValidateIf(
+    (o: UpdateFilterDto) =>
+      o.action === FilterActions.REMOVE_WORD ||
+      o.action === FilterActions.REMOVE_LINE ||
+      o.action === FilterActions.REGEX_REPLACE,
+  )
   replacement?: string;
 
   @IsBoolean()
@@ -56,22 +62,4 @@ export class UpdateFilterDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-}
-export class TestFilterDto {
-  @IsString()
-  text!: string;
-
-  @IsString()
-  pattern!: string;
-
-  @IsEnum(FilterActions)
-  action!: FilterActions;
-
-  @IsBoolean()
-  @IsOptional()
-  isRegex?: boolean;
-
-  @IsString()
-  @IsOptional()
-  replacement?: string;
 }

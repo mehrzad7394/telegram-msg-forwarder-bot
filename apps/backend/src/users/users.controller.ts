@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -10,9 +11,12 @@ import {
 import { UsersService } from './users.service';
 import { UserRoles } from '../../../../packages/types/enums/UserRoles';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @Controller('users')
-@UseGuards(JwtAuthGaurd, RolesGaurd)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly usersService: UsersService) {}
   @Get()
@@ -22,7 +26,7 @@ export class UserController {
     return { success: true, data: users };
   }
   @Get('stats')
-  @UserRoles(UserRoles.ADMIN)
+  @Roles(UserRoles.ADMIN)
   async getStats() {
     const stats = await this.usersService.getUsersCount();
     return { success: true, data: stats };
