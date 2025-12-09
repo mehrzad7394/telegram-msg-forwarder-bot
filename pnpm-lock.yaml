@@ -87,8 +87,8 @@ importers:
         specifier: ^7.8.1
         version: 7.8.2
       telegraf:
-        specifier: ^4.16.3
-        version: 4.16.3
+        specifier: 4.14.0
+        version: 4.14.0
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.2.0
@@ -1232,8 +1232,8 @@ packages:
   '@tailwindcss/postcss@4.1.17':
     resolution: {integrity: sha512-+nKl9N9mN5uJ+M7dBOOCzINw94MPstNR/GtIhz1fpZysxL/4a+No64jCBD6CPN+bIHWFx3KWuu8XJRrj/572Dw==}
 
-  '@telegraf/types@7.1.0':
-    resolution: {integrity: sha512-kGevOIbpMcIlCDeorKGpwZmdH7kHbqlk/Yj6dEpJMKEQw5lk0KVQY0OLXaCswy8GqlIVLd5625OB+rAntP9xVw==}
+  '@telegraf/types@6.9.1':
+    resolution: {integrity: sha512-bzqwhicZq401T0e09tu8b1KvGfJObPmzKU/iKCT5V466AsAZZWQrBYQ5edbmD1VZuHLEwopoOVY5wPP4HaLtug==}
 
   '@tokenizer/inflate@0.3.1':
     resolution: {integrity: sha512-4oeoZEBQdLdt5WmP/hx1KZ6D3/Oid/0cUb2nk4F0pTDAWy+KCH3/EnAkZF/bvckWo8I33EqBm01lIPgmgc8rCA==}
@@ -4150,8 +4150,8 @@ packages:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
 
-  telegraf@4.16.3:
-    resolution: {integrity: sha512-yjEu2NwkHlXu0OARWoNhJlIjX09dRktiMQFsM678BAH/PEPVwctzL67+tvXqLCRQQvm3SDtki2saGO9hLlz68w==}
+  telegraf@4.14.0:
+    resolution: {integrity: sha512-Nn2EBsuar/Mf3SD6O9tHmJ0FyJWnwAi4rewkJMmzd/O1xWYKglEuzSnCuHHRY7oD5NJ6WNPsavta5DbED8tG3w==}
     engines: {node: ^12.20.0 || >=14.13.1}
     hasBin: true
 
@@ -5634,7 +5634,7 @@ snapshots:
       postcss: 8.5.6
       tailwindcss: 4.1.17
 
-  '@telegraf/types@7.1.0': {}
+  '@telegraf/types@6.9.1': {}
 
   '@tokenizer/inflate@0.3.1':
     dependencies:
@@ -9033,9 +9033,9 @@ snapshots:
 
   tapable@2.3.0: {}
 
-  telegraf@4.16.3:
+  telegraf@4.14.0:
     dependencies:
-      '@telegraf/types': 7.1.0
+      '@telegraf/types': 6.9.1
       abort-controller: 3.0.0
       debug: 4.4.3
       mri: 1.2.0
