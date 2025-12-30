@@ -8,6 +8,7 @@ import { MessageProcessorService } from '../queue/message-processor.service';
 import { User } from 'src/schemas/user.schema';
 import { Channel } from 'src/schemas/channel.schema';
 import { UserRoles } from 'src/types/types';
+import { SettingService } from 'src/setting/setting.service';
 
 interface TelegramChannel {
   id: number;
@@ -45,6 +46,7 @@ export class TelegramService {
     private readonly queueService: QueueService,
     private readonly channelsService: ChannelsService,
     private readonly messageProcessor: MessageProcessorService,
+    private readonly settingService: SettingService,
   ) {
     this.bot = bot;
   }
@@ -58,6 +60,7 @@ export class TelegramService {
       await this.loadActiveChannel();
 
       await this.filtersService.loadFilters();
+      await this.settingService.loadSettings();
       this.isInitialized = true;
       this.logger.log(`Bot initialized with ${this.usersCache.size} users`);
 
@@ -107,6 +110,7 @@ export class TelegramService {
         this.loadUsersFromDatabase(),
         this.loadActiveChannel(),
         this.filtersService.loadFilters(),
+        this.settingService.loadSettings(),
       ]);
       this.logger.log('Cache refreshed successfully');
     } catch (error) {
@@ -289,6 +293,7 @@ export class TelegramService {
     // Reset channel and clear data
     await this.channelsService.deactivateAll();
     this.filtersService.clearCache();
+    this.settingService.clearCache();
 
     //CLEAR CACHE
     this.usersWaitingForChannel.clear();

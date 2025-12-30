@@ -11,6 +11,7 @@ import { QueueService } from './queue.service';
 import { MessageProcessorService } from './message-processor.service';
 import { QueueProcessor } from './queue.processor';
 import { FiltersModule } from 'src/filters/filters.module';
+import { SettingModule } from 'src/setting/setting.module';
 @Module({
   imports: [
     BullModule.registerQueue({
@@ -25,6 +26,7 @@ import { FiltersModule } from 'src/filters/filters.module';
     ]),
     forwardRef(() => TelegramModule),
     FiltersModule,
+    SettingModule,
     // ChannelsModule,
   ],
   providers: [QueueService, MessageProcessorService, QueueProcessor],

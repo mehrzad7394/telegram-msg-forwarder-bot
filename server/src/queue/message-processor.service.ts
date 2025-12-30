@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { FiltersService } from 'src/filters/filters.service';
 import { Filter } from 'src/schemas/filters.schema';
+import { SettingService } from 'src/setting/setting.service';
 import { FilterActions } from 'src/types/types';
 
 @Injectable()
@@ -8,12 +9,22 @@ export class MessageProcessorService {
   private readonly logger = new Logger(MessageProcessorService.name);
   private readonly urlRegex = /https?:\/\/[^\s]+/g;
   private readonly mentionRegex = /@[a-zA-Z0-9_]+/g;
-  constructor(private readonly filtersService: FiltersService) {}
+  constructor(
+    private readonly filtersService: FiltersService,
+    private readonly settingsService: SettingService,
+  ) {}
 
   processMessage(text: string): string {
     let processedText = text;
     //get active filters
     const filters = this.filtersService.getActiveFilters();
+    const settings = this.settingsService.getSettings();
+    if (settings?.removeMention) {
+      processedText = this.removeMention(processedText);
+    }
+    if (settings?.removeURL) {
+      processedText = this.removeUrls(processedText);
+    }
     for (const filter of filters) {
       processedText = this.applyFilter(processedText, filter);
     }
@@ -33,9 +44,6 @@ export class MessageProcessorService {
 
         case FilterActions.REPLACE_LINE:
           return this.replaceLine(text, filter);
-
-        case FilterActions.REMOVE_URL:
-          return this.removeUrls(text);
 
         case FilterActions.REGEX_REPLACE:
           return this.regexReplace(text, filter);
@@ -93,9 +101,13 @@ export class MessageProcessorService {
   private removeUrls(text: string): string {
     return text
       .split('\n')
-      .filter(
-        (line) => !this.urlRegex.test(line) && !this.mentionRegex.test(line),
-      )
+      .filter((line) => !this.urlRegex.test(line))
+      .join('\n');
+  }
+  private removeMention(text: string): string {
+    return text
+      .split('\n')
+      .filter((line) => !this.mentionRegex.test(line))
       .join('\n');
   }
   private regexReplace(text: string, filter: Filter): string {

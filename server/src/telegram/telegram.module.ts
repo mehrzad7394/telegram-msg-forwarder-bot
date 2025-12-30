@@ -12,6 +12,7 @@ import { FiltersModule } from '../filters/filters.module';
 import { QueueModule } from '../queue/queue.module';
 import { ChannelsModule } from '../channels/channels.module';
 import { TelegramConfig } from './telegram.config';
+import { SettingModule } from 'src/setting/setting.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TelegramConfig } from './telegram.config';
     FiltersModule,
     forwardRef(() => QueueModule),
     ChannelsModule,
+    SettingModule,
   ],
   providers: [
     TelegramService,
