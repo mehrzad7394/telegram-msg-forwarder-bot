@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Telegraf, Context } from 'telegraf';
+import { Telegraf, Context, Markup } from 'telegraf';
 import { UsersService } from '../users/users.service';
 import { FiltersService } from '../filters/filters.service';
 import { QueueService } from '../queue/queue.service';
@@ -50,7 +50,16 @@ export class TelegramService {
   ) {
     this.bot = bot;
   }
-
+  private async setupBotCommands() {
+    await this.bot.telegram.setMyCommands([
+      { command: 'start', description: 'Start the bot' },
+      { command: 'channel', description: 'Show active channel info' },
+      { command: 'newchannel', description: 'Add a new channel (Admin)' },
+      { command: 'refresh', description: 'Refresh cache (Admin)' },
+      { command: 'help', description: 'Show help' },
+      { command: 'stop', description: 'Stop and reset bot (Admin)' },
+    ]);
+  }
   async initializeBot(): Promise<void> {
     try {
       this.logger.log('Initializing bot data...');
@@ -63,7 +72,7 @@ export class TelegramService {
       await this.settingService.loadSettings();
       this.isInitialized = true;
       this.logger.log(`Bot initialized with ${this.usersCache.size} users`);
-
+      await this.setupBotCommands();
       this.setupHandlers();
     } catch (error) {
       this.logger.error('Failed to initialize bot:', error);
@@ -137,7 +146,7 @@ export class TelegramService {
     //start command
     this.bot.start((ctx) => this.handleStart(ctx));
 
-    //Channel command
+    // //Channel command
     this.bot.command('channel', (ctx) => this.handleChannelCommand(ctx));
     this.bot.command('newchannel', (ctx) => this.handleAddChannel(ctx));
 
@@ -151,8 +160,39 @@ export class TelegramService {
 
     // Handle all messages
     this.bot.on('message', (ctx) => this.handleMessage(ctx));
+    this.bot.on('callback_query', async (ctx) => {
+      const data = ctx.callbackQuery
+        ? (ctx.callbackQuery as { data: string }).data
+        : null;
+      switch (data) {
+        case 'CMD_CHANNEL':
+          await this.handleChannelCommand(ctx);
+          break;
+
+        case 'CMD_HELP':
+          await this.handleHelpCommand(ctx);
+          break;
+
+        case 'CMD_NEWCHANNEL':
+          await this.handleAddChannel(ctx);
+          break;
+
+        case 'CMD_REFRESH':
+          await this.handleRefreshCommand(ctx);
+          break;
+
+        case 'CMD_STOP':
+          await this.handleStopCommand(ctx);
+          break;
+      }
+
+      await ctx.answerCbQuery();
+    });
   }
   private async handleStart(ctx: Context) {
+    if (!this.isInitialized) {
+      await this.initializeBot();
+    }
     const telegramId = ctx.from?.id.toString();
     if (!telegramId) return;
     try {
@@ -171,12 +211,8 @@ export class TelegramService {
         return;
       }
       await ctx.reply(
-        `👋 Welcome ${user.username || 'User'}! (${user.role})\n\n` +
-          `I'm your channel message bot. Here's what you can do:\n\n` +
-          `1. To setup channel:Use /newchannel to Forward any message from your channel (Admin only)\n` +
-          `2. Send me any message and I'll process and queue it for the channel\n` +
-          `3. Use /channel to check current channel\n` +
-          `4. Use /help for more info`,
+        `👋 Welcome ${user.username || 'User'}!\n\nChoose an action below:`,
+        this.mainMenuKeyboard(user),
       );
     } catch (error) {
       this.logger.error('Start command error:', error);
@@ -215,7 +251,7 @@ export class TelegramService {
     const channel = this.getActiveChannelFromCache();
     if (!channel) {
       await ctx.reply(
-        '❌ No channel configured. Please forward a message from your channel first.',
+        '❌ No channel configured. Please add channel first first.',
       );
       return;
     }
@@ -366,8 +402,7 @@ export class TelegramService {
         `✅ **Channel added successfully!**\n\n` +
           `**Channel:** ${newChannel.channelName}\n` +
           `**ID:** ${newChannel.channelId}\n\n` +
-          `You can now send Messages to bot and it will be forwarded to your channel!` +
-          `Use /channels to see all available channels.`,
+          `You can now send Messages to bot and it will be forwarded to your channel!`,
       );
       // Refresh cache to include the new channel
       await this.refreshCache();
@@ -433,5 +468,22 @@ export class TelegramService {
       this.logger.error('Error sending message to channel:', error);
       throw error;
     }
+  }
+
+  private mainMenuKeyboard(user: User) {
+    const buttons = [
+      [Markup.button.callback('📢 Current Channel', 'CMD_CHANNEL')],
+      [Markup.button.callback('ℹ️ Help', 'CMD_HELP')],
+    ];
+
+    if (user.role === UserRoles.ADMIN) {
+      buttons.push(
+        [Markup.button.callback('➕ Add Channel', 'CMD_NEWCHANNEL')],
+        [Markup.button.callback('🔄 Refresh Cache', 'CMD_REFRESH')],
+        [Markup.button.callback('🛑 Stop Bot', 'CMD_STOP')],
+      );
+    }
+
+    return Markup.inlineKeyboard(buttons);
   }
 }

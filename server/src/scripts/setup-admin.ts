@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '../types/types';
 dotenv.config();
 interface IUser {
   telegramId: string;
@@ -13,6 +13,7 @@ interface IUser {
 }
 
 async function setupAdmin() {
+  console.log(UserRoles);
   if (!process.env.MONGO_URI) {
     console.error('MONGO_URI is not defined in .env');
     process.exit(1);
