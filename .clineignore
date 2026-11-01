@@ -1,0 +1,27 @@
+# Dependencies and generated output
+**/node_modules/**
+**/dist/**
+**/build/**
+**/.next/**
+**/coverage/**
+**/.git/**
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# Logs and database exports
+**/*.log
+**/*.sql
+**/*.dump
+**/*.sqlite
+**/*.sqlite3
+
+# Archives
+**/*.rar
+**/*.zip
