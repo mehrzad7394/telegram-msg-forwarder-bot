@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { FiltersService } from 'src/filters/filters.service';
 import { Filter } from 'src/schemas/filters.schema';
 import { SettingService } from 'src/setting/setting.service';
-import { FilterActions } from 'src/types/types';
+import { FilterActions } from '@repo/shared';
 
 @Injectable()
 export class MessageProcessorService {

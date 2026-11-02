@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { UserRoles } from '../types/types';
+import { UserRoles } from '@repo/shared';
 dotenv.config();
 interface IUser {
   telegramId: string;

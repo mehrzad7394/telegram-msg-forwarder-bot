@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Filter } from 'src/schemas/filters.schema';
 import { CreateFilterDto, UpdateFilterDto } from './dto/filter.dto';
-import { FilterActions } from 'src/types/types';
+import { FilterActions } from '@repo/shared';
 
 @Injectable()
 export class FiltersService implements OnModuleInit {

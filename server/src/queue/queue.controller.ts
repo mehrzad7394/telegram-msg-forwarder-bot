@@ -3,7 +3,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { QueueService } from './queue.service';
 import { Roles } from 'src/auth/roles.decorator';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 
 @Controller('queue')
 @UseGuards(JwtAuthGuard, RolesGuard)

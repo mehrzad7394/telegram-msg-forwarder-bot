@@ -3,9 +3,9 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from 'src/schemas/user.schema';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
+import { JWTPayload, UserProfile, UserRoles } from '@repo/shared';
 import { compare, hash } from 'bcryptjs';
-import { JWTPayload, UserProfile, UserRoles } from 'src/types/types';
 
 @Injectable()
 export class AuthService {

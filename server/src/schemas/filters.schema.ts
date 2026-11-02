@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { FilterActions } from 'src/types/types';
+import { FilterActions } from '@repo/shared';
 
 @Schema({ timestamps: true })
 export class Filter extends Document {

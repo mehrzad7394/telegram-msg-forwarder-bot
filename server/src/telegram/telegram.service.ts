@@ -5,9 +5,11 @@ import { FiltersService } from '../filters/filters.service';
 import { QueueService } from '../queue/queue.service';
 import { ChannelsService } from '../channels/channels.service';
 import { MessageProcessorService } from '../queue/message-processor.service';
+// User import remains unchanged as schema is server only
+// Channel import remains unchanged as schema is server only
+import { UserRoles, UserProfile } from '@repo/shared';
 import { User } from 'src/schemas/user.schema';
 import { Channel } from 'src/schemas/channel.schema';
-import { UserRoles } from 'src/types/types';
 import { SettingService } from 'src/setting/setting.service';
 
 interface TelegramChannel {

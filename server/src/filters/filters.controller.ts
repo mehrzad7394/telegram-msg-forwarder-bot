@@ -16,7 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CreateFilterDto, UpdateFilterDto } from './dto/filter.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 import { ApiBearerAuth } from '@nestjs/swagger';
 @Controller('filters')
 @ApiBearerAuth('access-token')

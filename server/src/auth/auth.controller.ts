@@ -12,7 +12,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { User } from 'src/schemas/user.schema';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 import {
   ApiBearerAuth,
   ApiBody,

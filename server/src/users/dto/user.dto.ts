@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 
 export class CreateUserDto {
   @ApiProperty({

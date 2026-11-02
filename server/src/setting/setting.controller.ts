@@ -2,7 +2,7 @@ import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 import { SettingService } from './setting.service';
 import { UpdateSettingDto } from './dto/setting.dto';
 import { ApiBearerAuth } from '@nestjs/swagger';

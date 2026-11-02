@@ -15,7 +15,7 @@ import { CreateChannelDto, UpdateChannelDto } from './dto/channel.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRoles } from 'src/types/types';
+import { UserRoles } from '@repo/shared';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('channels')

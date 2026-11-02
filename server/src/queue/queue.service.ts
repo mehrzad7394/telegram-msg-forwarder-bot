@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bull';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Queue } from 'bullmq';
+import { Queue } from 'bull';
 import { Model } from 'mongoose';
 import { QueuedMessage } from 'src/schemas/queued-message.schema';
 import { CreateQueueDTO } from './dto/queue.dto';

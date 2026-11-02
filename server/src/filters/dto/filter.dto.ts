@@ -7,7 +7,7 @@ import {
   IsString,
   ValidateIf,
 } from 'class-validator';
-import { FilterActions } from 'src/types/types';
+import { FilterActions } from '@repo/shared';
 
 export class CreateFilterDto {
   @ApiProperty({
