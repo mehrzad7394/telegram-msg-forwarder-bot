@@ -1,0 +1,22 @@
+
+> client@1.0.0 build F:\projects\telegram-msg-forwarder-bot\client
+> next build
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./src/app/[locale]/layout.tsx
+Module not found: Can't resolve './globals.css'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/page.tsx
+Module not found: Can't resolve '@/config'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
+ ELIFECYCLE  Command failed with exit code 1.

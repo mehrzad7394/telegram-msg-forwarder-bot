@@ -1,4 +1,4 @@
-import type { FilterActions, UserRoles } from '@repo/shared';
+import type { FilterActions, UserRoles } from "@repo/shared";
 
 export type ApiEnvelope<T> = { success?: boolean; message?: string; data: T };
 export type UserRecord = {
@@ -31,7 +31,7 @@ export type QueueRecord = {
   _id: string;
   originalMessage: string;
   processedMessage: string;
-  status: 'queued' | 'processing' | 'sent' | 'failed';
+  status: "queued" | "processing" | "sent" | "failed";
   error?: string;
   createdAt?: string;
   sentAt?: string;
