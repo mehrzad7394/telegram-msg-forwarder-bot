@@ -5,11 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**"],
-      "inputs": [
-        "{server,shared}/**/*",
-        "!**/*.test.ts",
-        "!**/*.spec.ts"
-      ]
+      "inputs": ["$TURBO_DEFAULT", "!**/*.test.ts", "!**/*.spec.ts"]
     },
     "dev": {
       "cache": false,
