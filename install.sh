@@ -113,6 +113,24 @@ apt-get install -y -qq \
   curl wget git ca-certificates gnupg lsb-release \
   build-essential unzip jq openssl
 
+# ────────── swap (low-memory servers) ──────────
+if ! swapon --show 2>/dev/null | grep -q .; then
+  mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+  if (( mem_kb < 2000000 )); then   # < ~2 GB RAM
+    log "Low memory (${mem_kb} kB) and no swap — creating 2 GB swapfile"
+    fallocate -l 2G /swapfile 2>/dev/null \
+      || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+    swapon /swapfile
+    grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    sysctl -w vm.swappiness=10 >/dev/null
+    log "Swap enabled: $(swapon --show | awk 'NR==1{print $3}')"
+  fi
+else
+  log "Swap already configured: $(swapon --show | awk 'NR==1{print $3}')"
+fi
+
 # ────────── Node.js 22 ──────────
 need_node=1
 if command -v node >/dev/null; then
@@ -157,12 +175,12 @@ if dpkg -l 2>/dev/null | grep -qE '^ii\s+redis-server'; then
   apt-get purge -y -qq redis-server redis-tools 2>/dev/null || true
 fi
 
-# Free ports 27017 / 6379 in case anything else is listening
+# Warn if something else holds the DB ports
 if ss -ltn '( sport = :27017 )' 2>/dev/null | grep -q 27017; then
-  warn "Port 27017 already in use by a non-Docker process — investigate if MongoDB fails to start"
+  warn "Port 27017 already in use by a non-Docker process — MongoDB may fail to start"
 fi
 if ss -ltn '( sport = :6379 )' 2>/dev/null | grep -q 6379; then
-  warn "Port 6379 already in use by a non-Docker process — investigate if Redis fails to start"
+  warn "Port 6379 already in use by a non-Docker process — Redis may fail to start"
 fi
 
 # ────────── MongoDB via Docker (7.0 — kernel-7.x safe) ──────────
@@ -354,11 +372,15 @@ echo "    server/.env        → $MONGO_KEY, Redis, $BOT_KEY, $JWT_KEY, $ADMIN_I
 echo "    client/.env.local  → SITE_URL=$SITE_URL"
 echo "                         BACKEND_API_URL=$BACKEND_API_URL"
 
-# ────────── install + build ──────────
-log "pnpm install"
-if ! pnpm install --frozen-lockfile; then
+# ────────── install + build (memory-capped for small VPS) ──────────
+export NODE_OPTIONS="--max-old-space-size=1536"
+
+log "pnpm install (child-concurrency=1, network-concurrency=1)"
+if ! pnpm install --frozen-lockfile \
+     --child-concurrency=1 --network-concurrency=1; then
   warn "Frozen lockfile failed — retrying without --frozen-lockfile"
-  pnpm install
+  pnpm install --child-concurrency=1 --network-concurrency=1 \
+    || die "pnpm install failed even with reduced concurrency. Add more swap or RAM."
 fi
 
 log "Build @repo/shared"
