@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Relay Console – Ubuntu auto-install (IP:port mode)
+# Relay Console – Ubuntu auto-install (22.04 / 24.04 / 26.04+)
 # Usage: sudo bash install.sh [--repo <git-url>] [--dir <install-dir>] [--port <frontend-port>]
 set -euo pipefail
 
@@ -34,7 +34,6 @@ confirm() {
   read -rp "$prompt (y/N): " answer
   [[ "$answer" =~ ^[Yy] ]]
 }
-
 detect_public_ip() {
   local ip=""
   ip=$(curl -4 -fsSL --max-time 5 https://api.ipify.org 2>/dev/null || true)
@@ -69,10 +68,13 @@ echo
 
 # ────────── OS detection ──────────
 . /etc/os-release
-[[ "${ID:-}" == "ubuntu" ]] || warn "Untested on ${PRETTY_NAME}. Continuing anyway."
 log "OS: $PRETTY_NAME ($(uname -m))"
+if [[ "${ID:-}" != "ubuntu" ]]; then
+  warn "This installer is tuned for Ubuntu; continuing on ${PRETTY_NAME} at your own risk."
+fi
+UBUNTU_CODENAME="${VERSION_CODENAME:-${UBUNTU_CODENAME:-unknown}}"
 
-# ────────── repository ──────────
+# ────────── repository URL ──────────
 if [[ -z "$REPO_URL" ]]; then
   REPO_URL=$(ask "GitHub repository URL (https://github.com/user/repo.git)")
 fi
@@ -89,15 +91,16 @@ apt-get install -y -qq \
 # ────────── Node.js 22 ──────────
 need_node=1
 if command -v node >/dev/null; then
-  cur=$(node -v | sed 's/^v//;s/\..*//')
-  [[ "$cur" -ge 22 ]] && need_node=0
+  cur_major=$(node -v | sed 's/^v//' | cut -d. -f1)
+  if [[ "$cur_major" -ge 22 ]]; then
+    need_node=0
+    log "Node.js $(node -v) already present"
+  fi
 fi
 if [[ $need_node -eq 1 ]]; then
   log "Installing Node.js 22…"
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y -qq nodejs
-else
-  log "Node.js $(node -v) already present"
 fi
 
 # ────────── pnpm 10 ──────────
@@ -107,17 +110,37 @@ corepack prepare pnpm@10 --activate >/dev/null 2>&1 || \
   npm install -g pnpm@10 >/dev/null
 pnpm -v >/dev/null || die "pnpm install failed"
 
-# ────────── MongoDB 7.0 ──────────
-if ! command -v mongod >/dev/null; then
-  log "Installing MongoDB 7.0…"
-  curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc \
-    | gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
-  CODENAME=$(lsb_release -cs)
-  echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] \
-https://repo.mongodb.org/apt/ubuntu ${CODENAME}/mongodb-org/7.0 multiverse" \
-    > /etc/apt/sources.list.d/mongodb-org-7.0.list
+# ────────── MongoDB 8.0 (works on 22.04 / 24.04 / 26.04+) ──────────
+install_mongodb() {
+  local suite="$1"
+  local ver="8.0"
+
+  log "Installing MongoDB ${ver} from the '${suite}' repository…"
+
+  curl -fsSL "https://www.mongodb.org/static/pgp/server-${ver}.asc" \
+    | gpg --dearmor -o "/usr/share/keyrings/mongodb-server-${ver}.gpg"
+
+  echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-${ver}.gpg ] \
+https://repo.mongodb.org/apt/ubuntu ${suite}/mongodb-org/${ver} multiverse" \
+    > "/etc/apt/sources.list.d/mongodb-org-${ver}.list"
+
   apt-get update -qq
   apt-get install -y -qq mongodb-org
+}
+
+if ! command -v mongod >/dev/null; then
+  case "$UBUNTU_CODENAME" in
+    jammy|noble)
+      MONGO_SUITE="$UBUNTU_CODENAME"
+      ;;
+    resolute|oracular|plucky|*)
+      # No native 8.0 repo for these yet — noble is ABI-compatible
+      MONGO_SUITE="noble"
+      [[ "$UBUNTU_CODENAME" == "resolute" ]] && \
+        warn "Ubuntu 26.04 (resolute) has no native MongoDB 8.0 repo — using noble packages."
+      ;;
+  esac
+  install_mongodb "$MONGO_SUITE"
 fi
 systemctl enable --now mongod
 log "MongoDB active: $(systemctl is-active mongod)"
@@ -133,16 +156,19 @@ log "Redis active: $(systemctl is-active redis-server)"
 # ────────── Clone repo ──────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   log "Updating existing checkout at $INSTALL_DIR…"
-  git -C "$INSTALL_DIR" pull --ff-only
+  git -C "$INSTALL_DIR" fetch --all --prune
+  git -C "$INSTALL_DIR" reset --hard "@{upstream}" 2>/dev/null || \
+    git -C "$INSTALL_DIR" pull --ff-only
 else
   log "Cloning $REPO_URL → $INSTALL_DIR"
   mkdir -p "$(dirname "$INSTALL_DIR")"
   git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 cd "$INSTALL_DIR"
-[[ -f server/.env.example ]]         || die "Missing server/.env.example in repo"
-[[ -f client/.env.local.example ]]   || die "Missing client/.env.local.example in repo"
-[[ -f package.json ]]                || die "Missing root package.json"
+
+[[ -f server/.env.example ]]       || die "Missing server/.env.example in repo"
+[[ -f client/.env.local.example ]] || die "Missing client/.env.local.example in repo"
+[[ -f package.json ]]              || die "Missing root package.json"
 
 # ────────── env-key auto-detect ──────────
 find_env_key() {
@@ -153,12 +179,12 @@ find_env_key() {
   echo "${found:-$fallback}"
 }
 
-MONGO_KEY=$(find_env_key server/.env.example 'MONGO_URI'  'MONGO_URI')
-REDIS_URL_KEY=$(find_env_key server/.env.example 'REDIS_URL' '')
+MONGO_KEY=$(find_env_key server/.env.example 'MONGO_URI'      'MONGO_URI')
+REDIS_URL_KEY=$(find_env_key server/.env.example 'REDIS_URL'  '')
 REDIS_HOST_KEY=$(find_env_key server/.env.example 'REDIS_HOST' '')
 REDIS_PORT_KEY=$(find_env_key server/.env.example 'REDIS_PORT' '')
-BOT_KEY=$(find_env_key server/.env.example 'BOT_TOKEN'   'BOT_TOKEN')
-JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'  'JWT_SECRET')
+BOT_KEY=$(find_env_key server/.env.example 'BOT_TOKEN'        'BOT_TOKEN')
+JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'       'JWT_SECRET')
 ADMIN_ID_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*ID'   'ADMIN_TELEGRAM_ID')
 ADMIN_PASS_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*PASS' 'ADMIN_PASSWORD')
 
@@ -172,22 +198,25 @@ CLIENT_PORT=$(ask "Frontend port (public)" "$CLIENT_PORT")
 [[ "$CLIENT_PORT" =~ ^[0-9]+$ ]] && (( CLIENT_PORT >= 1 && CLIENT_PORT <= 65535 )) \
   || die "Invalid port: $CLIENT_PORT"
 
-BACKEND_API_URL_DEFAULT="http://127.0.0.1:${BACKEND_PORT}/api"
 SITE_URL_DEFAULT="http://${SERVER_IP}:${CLIENT_PORT}"
+BACKEND_API_URL_DEFAULT="http://127.0.0.1:${BACKEND_PORT}/api"
 
 echo
 info "Application environment"
 MONGO_URI=$(ask "MongoDB URI" "mongodb://127.0.0.1:27017/relay-console")
-REDIS_URL=$(ask "Redis URL" "redis://127.0.0.1:6379")
+REDIS_URL=$(ask "Redis URL"   "redis://127.0.0.1:6379")
 BOT_TOKEN=$(ask "Telegram bot token")
 [[ -n "$BOT_TOKEN" ]] || die "Bot token is required"
 JWT_SECRET=$(ask "JWT secret (blank = generate random)")
-[[ -z "$JWT_SECRET" ]] && JWT_SECRET=$(openssl rand -hex 32) && log "Generated JWT secret"
+if [[ -z "$JWT_SECRET" ]]; then
+  JWT_SECRET=$(openssl rand -hex 32)
+  log "Generated JWT secret"
+fi
 ADMIN_TG_ID=$(ask "Initial admin Telegram user ID")
 [[ "$ADMIN_TG_ID" =~ ^[0-9]+$ ]] || die "Admin Telegram ID must be numeric"
 ADMIN_PASSWORD=$(ask_secret "Initial admin password (min 8 chars)")
 [[ ${#ADMIN_PASSWORD} -ge 8 ]] || die "Admin password too short"
-SITE_URL=$(ask "Public site URL (used for canonical/OG tags)" "$SITE_URL_DEFAULT")
+SITE_URL=$(ask "Public site URL (used for canonical / OG tags)" "$SITE_URL_DEFAULT")
 BACKEND_API_URL=$(ask "Server-side backend API URL (localhost is correct)" "$BACKEND_API_URL_DEFAULT")
 
 # ────────── write .env files ──────────
@@ -195,7 +224,6 @@ set_env() {
   local file="$1" key="$2" value="$3"
   [[ -f "$file" ]] || touch "$file"
   if grep -q "^${key}=" "$file"; then
-    # use a safer sed delimiter and escape anything risky in the value
     local esc; esc=$(printf '%s' "$value" | sed -e 's/[\/&|]/\\&/g')
     sed -i "s|^${key}=.*|${key}=${esc}|" "$file"
   else
@@ -203,7 +231,7 @@ set_env() {
   fi
 }
 
-cp -n server/.env.example server/.env 2>/dev/null || true
+cp -n server/.env.example       server/.env       2>/dev/null || true
 cp -n client/.env.local.example client/.env.local 2>/dev/null || true
 
 set_env server/.env "$MONGO_KEY" "$MONGO_URI"
@@ -220,13 +248,13 @@ set_env server/.env "$JWT_KEY"        "$JWT_SECRET"
 set_env server/.env "$ADMIN_ID_KEY"   "$ADMIN_TG_ID"
 set_env server/.env "$ADMIN_PASS_KEY" "$ADMIN_PASSWORD"
 
-set_env client/.env.local "SITE_URL"         "$SITE_URL"
-set_env client/.env.local "BACKEND_API_URL"  "$BACKEND_API_URL"
+set_env client/.env.local "SITE_URL"        "$SITE_URL"
+set_env client/.env.local "BACKEND_API_URL" "$BACKEND_API_URL"
 
 log "Env written:"
-echo "    server/.env      → $MONGO_KEY / Redis / $BOT_KEY / $JWT_KEY / $ADMIN_ID_KEY / $ADMIN_PASS_KEY"
-echo "    client/.env.local → SITE_URL=$SITE_URL"
-echo "                        BACKEND_API_URL=$BACKEND_API_URL"
+echo "    server/.env        → $MONGO_KEY, Redis, $BOT_KEY, $JWT_KEY, $ADMIN_ID_KEY, $ADMIN_PASS_KEY"
+echo "    client/.env.local  → SITE_URL=$SITE_URL"
+echo "                         BACKEND_API_URL=$BACKEND_API_URL"
 
 # ────────── install + build ──────────
 log "pnpm install"
@@ -240,7 +268,7 @@ pnpm --filter @repo/shared build
 
 log "Setup admin"
 if ! pnpm --filter server setup-admin; then
-  warn "setup-admin exited non-zero. Re-run manually if needed:"
+  warn "setup-admin exited non-zero. Re-run later with:"
   warn "  cd $INSTALL_DIR && pnpm --filter server setup-admin"
 fi
 
@@ -250,7 +278,7 @@ pnpm build
 # ────────── PM2 ──────────
 if ! command -v pm2 >/dev/null; then
   log "Installing PM2"
-  npm install -g pm2
+  npm install -g pm2 >/dev/null
 fi
 
 SERVER_ENTRY="dist/main.js"
@@ -265,6 +293,8 @@ module.exports = {
       cwd: '${INSTALL_DIR}/server',
       script: '${SERVER_ENTRY}',
       env: { NODE_ENV: 'production', PORT: ${BACKEND_PORT} },
+      max_restarts: 20,
+      restart_delay: 3000,
     },
     {
       name: 'relay-client',
@@ -272,6 +302,8 @@ module.exports = {
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 0.0.0.0 -p ${CLIENT_PORT}',
       env: { NODE_ENV: 'production' },
+      max_restarts: 20,
+      restart_delay: 3000,
     },
   ],
 };
@@ -280,7 +312,8 @@ EOF
 pm2 delete all >/dev/null 2>&1 || true
 pm2 start ecosystem.config.js
 pm2 save
-pm2 startup systemd -u root --hp /root | tail -1 | bash || warn "pm2 startup install failed (run 'pm2 startup' manually)"
+pm2 startup systemd -u root --hp /root | tail -1 | bash || \
+  warn "pm2 startup failed — run 'pm2 startup' manually to enable boot autostart."
 
 # ────────── firewall ──────────
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
@@ -327,8 +360,8 @@ NGINX
   if confirm "Obtain Let's Encrypt certificate?"; then
     apt-get install -y -qq certbot python3-certbot-nginx
     certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      -m "admin@$DOMAIN" || warn "Certbot failed – run manually later"
-    warn "If you now serve via HTTPS, update client/.env.local SITE_URL, then:"
+      -m "admin@$DOMAIN" || warn "Certbot failed — run manually later"
+    warn "If you now serve via HTTPS, update SITE_URL in client/.env.local and rebuild:"
     warn "  cd $INSTALL_DIR && pnpm --filter client build && pm2 restart relay-client"
   fi
 fi
@@ -336,19 +369,19 @@ fi
 # ────────── health check ──────────
 echo
 info "Waiting for services to come up…"
-for i in {1..15}; do
+for _ in {1..20}; do
   curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/health" -o /dev/null && break
   sleep 1
 done
 if curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/health" -o /dev/null; then
   log "Backend OK  (127.0.0.1:${BACKEND_PORT}/api/health)"
 else
-  warn "Backend health check failed — see: pm2 logs relay-server"
+  warn "Backend health check failed — see: pm2 logs relay-server --lines 100"
 fi
 if curl -sf "http://127.0.0.1:${CLIENT_PORT}/login" -o /dev/null; then
   log "Frontend OK (127.0.0.1:${CLIENT_PORT}/login)"
 else
-  warn "Frontend health check failed — see: pm2 logs relay-client"
+  warn "Frontend health check failed — see: pm2 logs relay-client --lines 100"
 fi
 
 # ────────── final summary ──────────
@@ -357,15 +390,13 @@ echo -e "${GREEN}════════════════ Installation c
 echo " Install dir   : $INSTALL_DIR"
 echo " Frontend      : http://${SERVER_IP}:${CLIENT_PORT}/login"
 echo " Persian login : http://${SERVER_IP}:${CLIENT_PORT}/fa/login"
-echo " Swagger       : http://127.0.0.1:${BACKEND_PORT}/api/docs (localhost only by default)"
 echo " Admin user    : admin"
 echo " Admin pass    : (the one you entered)"
 echo
 echo " Manage:  pm2 status | pm2 logs relay-server | pm2 restart all"
 echo " Env:     $INSTALL_DIR/server/.env  &  $INSTALL_DIR/client/.env.local"
 echo
-echo " If the URL above does not load from another machine, check:"
-echo "   • Cloud provider firewall / security group allows TCP ${CLIENT_PORT}"
-echo "   • Your router/NAT port-forward (if applicable)"
-echo "   • 'ufw status' shows ${CLIENT_PORT}/tcp ALLOW"
+echo " If the URL above does not load from another machine:"
+echo "   • Add inbound TCP ${CLIENT_PORT} in your cloud provider's firewall"
+echo "   • Check 'ufw status verbose' shows ${CLIENT_PORT}/tcp ALLOW"
 echo -e "${GREEN}═════════════════════════════════════════════════════${NC}"
