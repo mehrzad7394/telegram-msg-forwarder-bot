@@ -79,6 +79,19 @@ echo -e "${BOLD}   Relay Console — Auto Installer${NC}"
 echo -e "${BOLD}══════════════════════════════════════════${NC}"
 echo
 
+# ────────── port pre-flight (don't fight other apps) ──────────
+check_port_free() {
+  local port="$1" label="$2"
+  if ss -ltn "( sport = :${port} )" 2>/dev/null | grep -q "${port}"; then
+    local holder
+    holder=$(ss -ltnp "( sport = :${port} )" 2>/dev/null \
+             | awk 'NR==2{print $NF}' | sed -E 's/.*users:\(\("([^"]+)".*/\1/')
+    warn "Port ${port} (${label}) already in use${holder:+ by $holder}"
+    return 1
+  fi
+  return 0
+}
+
 # ────────── OS detection ──────────
 . /etc/os-release
 log "OS: $PRETTY_NAME ($(uname -m))"
@@ -304,6 +317,16 @@ JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'         'JWT_SECRET')
 ADMIN_ID_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*ID'   'ADMIN_TELEGRAM_ID')
 ADMIN_PASS_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*PASS' 'ADMIN_PASSWORD')
 
+# ────────── verify ports before touching anything ──────────
+echo
+info "Checking ports for conflicts with other services"
+check_port_free 27017 "MongoDB" || \
+  warn "A MongoDB may already be running on this host. The installer's Docker container may fail to bind. Consider reusing it — see README 'Reusing an Existing MongoDB or Redis'."
+check_port_free 6379  "Redis"   || \
+  warn "A Redis may already be running on this host. The installer's Docker container may fail to bind. Consider reusing it — see README."
+
+check_port_free "${CLIENT_PORT}" "frontend" || \
+  die "Frontend port ${CLIENT_PORT} is already in use. Pass --port <other> or answer a different value."
 # ────────── interactive config ──────────
 echo
 info "Network configuration"
@@ -428,8 +451,25 @@ module.exports = {
   ],
 };
 EOF
+# ────────── don't blindly delete other apps' PM2 processes ──────────
+if command -v pm2 >/dev/null; then
+  other_apps=$(pm2 jlist 2>/dev/null | jq -r '.[].name' \
+               | grep -vE '^(relay-server|relay-client)$' || true)
+  if [[ -n "$other_apps" ]]; then
+    warn "PM2 already manages other apps:"
+    echo "$other_apps" | sed 's/^/    - /'
+    if ! confirm "Continue anyway? (this will NOT delete them; we only restart relay-*)"; then
+      die "Aborted to protect existing PM2 apps."
+    fi
+    PM2_KEEP_OTHERS=1
+  fi
+fi
 
-pm2 delete all >/dev/null 2>&1 || true
+if [[ "${PM2_KEEP_OTHERS:-0}" -eq 1 ]]; then
+  pm2 delete relay-server relay-client >/dev/null 2>&1 || true
+else
+  pm2 delete all >/dev/null 2>&1 || true
+fi
 pm2 start ecosystem.config.js >/dev/null
 pm2 save       >/dev/null
 pm2 startup systemd -u root --hp /root | tail -1 | bash >/dev/null 2>&1 || \
