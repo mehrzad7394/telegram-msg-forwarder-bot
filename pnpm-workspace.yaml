@@ -1,0 +1,11 @@
+packages:
+  - "client"
+  - "server"
+  - "shared"
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': false
+  '@swc/core': false
+  bcrypt: true
+  msgpackr-extract: false
+  unrs-resolver: true

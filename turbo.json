@@ -1,0 +1,81 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "SITE_URL"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "build/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT",
+        "src/**",
+        "public/**",
+        "messages/**",
+        "*.json",
+        "*.config.*",
+        "!**/*.test.ts",
+        "!**/*.spec.ts"
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "BACKEND_API_URL",
+        "SITE_URL",
+        "MONGO_URI",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BOT_TOKEN",
+        "JWT_SECRET",
+        "FRONTEND_URL",
+        "PORT"
+      ]
+    },
+    "start": {
+      "dependsOn": [
+        "build"
+      ],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "BACKEND_API_URL",
+        "SITE_URL",
+        "MONGO_URI",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "BOT_TOKEN",
+        "JWT_SECRET",
+        "FRONTEND_URL",
+        "PORT"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}
