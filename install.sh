@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Relay Console – Ubuntu auto-install (22.04 / 24.04 / 26.04+)
-# Usage: sudo bash install.sh [--repo <git-url>] [--dir <install-dir>] [--port <frontend-port>]
+# MongoDB and Redis both run in Docker with persistent volumes.
+#
+# Usage:
+#   sudo bash install.sh [--repo URL] [--dir DIR] [--port PORT]
+#                        [--fresh] [--wipe-data]
+#
+#   --fresh       stop services, wipe /opt/relay-console, keep data volumes
+#   --wipe-data   also delete the MongoDB and Redis data volumes (destructive)
 set -euo pipefail
 
 # ────────── styling ──────────
@@ -49,13 +56,19 @@ INSTALL_DIR="/opt/relay-console"
 REPO_URL=""
 CLIENT_PORT="3000"
 BACKEND_PORT="3001"
+FRESH=0
+WIPE_DATA=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --repo) REPO_URL="$2"; shift 2 ;;
-    --dir)  INSTALL_DIR="$2"; shift 2 ;;
-    --port) CLIENT_PORT="$2"; shift 2 ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --repo)      REPO_URL="$2";    shift 2 ;;
+    --dir)       INSTALL_DIR="$2"; shift 2 ;;
+    --port)      CLIENT_PORT="$2"; shift 2 ;;
+    --fresh)     FRESH=1; shift ;;
+    --wipe-data) WIPE_DATA=1; shift ;;
+    -h|--help)
+      grep '^#' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
     *) die "Unknown arg: $1" ;;
   esac
 done
@@ -69,10 +82,22 @@ echo
 # ────────── OS detection ──────────
 . /etc/os-release
 log "OS: $PRETTY_NAME ($(uname -m))"
-if [[ "${ID:-}" != "ubuntu" ]]; then
-  warn "This installer is tuned for Ubuntu; continuing on ${PRETTY_NAME} at your own risk."
+[[ "${ID:-}" == "ubuntu" ]] || warn "Tuned for Ubuntu; continuing on ${PRETTY_NAME}."
+
+# ────────── fresh mode ──────────
+if [[ $FRESH -eq 1 ]]; then
+  warn "Fresh mode: stopping services and wiping previous install"
+  pm2 delete all >/dev/null 2>&1 || true
+  pm2 kill       >/dev/null 2>&1 || true
+  rm -rf "$INSTALL_DIR"
+  if [[ $WIPE_DATA -eq 1 ]]; then
+    warn "Also wiping MongoDB and Redis data volumes (destructive)"
+    docker rm -f relay-mongo relay-redis >/dev/null 2>&1 || true
+    docker volume rm relay-mongo-data relay-redis-data >/dev/null 2>&1 || true
+  else
+    docker stop relay-mongo relay-redis >/dev/null 2>&1 || true
+  fi
 fi
-UBUNTU_CODENAME="${VERSION_CODENAME:-${UBUNTU_CODENAME:-unknown}}"
 
 # ────────── repository URL ──────────
 if [[ -z "$REPO_URL" ]]; then
@@ -92,10 +117,7 @@ apt-get install -y -qq \
 need_node=1
 if command -v node >/dev/null; then
   cur_major=$(node -v | sed 's/^v//' | cut -d. -f1)
-  if [[ "$cur_major" -ge 22 ]]; then
-    need_node=0
-    log "Node.js $(node -v) already present"
-  fi
+  [[ "$cur_major" -ge 22 ]] && { need_node=0; log "Node.js $(node -v) already present"; }
 fi
 if [[ $need_node -eq 1 ]]; then
   log "Installing Node.js 22…"
@@ -110,48 +132,124 @@ corepack prepare pnpm@10 --activate >/dev/null 2>&1 || \
   npm install -g pnpm@10 >/dev/null
 pnpm -v >/dev/null || die "pnpm install failed"
 
-# ────────── MongoDB 8.0 (works on 22.04 / 24.04 / 26.04+) ──────────
-install_mongodb() {
-  local suite="$1"
-  local ver="8.0"
+# ────────── Docker ──────────
+if ! command -v docker >/dev/null; then
+  log "Installing Docker…"
+  apt-get install -y -qq docker.io
+fi
+systemctl enable --now docker >/dev/null
+docker info >/dev/null 2>&1 || die "Docker daemon not reachable"
 
-  log "Installing MongoDB ${ver} from the '${suite}' repository…"
+# ────────── clean up leftover native MongoDB / Redis ──────────
+if dpkg -l 2>/dev/null | grep -qE '^ii\s+mongodb-org' || \
+   compgen -G "/etc/apt/sources.list.d/mongodb-org-*.list" >/dev/null; then
+  warn "Removing leftover native MongoDB install from earlier runs"
+  systemctl disable --now mongod 2>/dev/null || true
+  apt-get purge -y -qq \
+    mongodb-org mongodb-org-* mongodb-org-server mongodb-org-mongos \
+    mongodb-org-shell mongodb-org-tools mongodb-org-database \
+    mongodb-org-database-tools-extra 2>/dev/null || true
+  rm -f /etc/apt/sources.list.d/mongodb-org-*.list
+fi
+if dpkg -l 2>/dev/null | grep -qE '^ii\s+redis-server'; then
+  warn "Removing leftover native Redis install from earlier runs"
+  systemctl disable --now redis-server 2>/dev/null || true
+  apt-get purge -y -qq redis-server redis-tools 2>/dev/null || true
+fi
 
-  curl -fsSL "https://www.mongodb.org/static/pgp/server-${ver}.asc" \
-    | gpg --dearmor -o "/usr/share/keyrings/mongodb-server-${ver}.gpg"
+# Free ports 27017 / 6379 in case anything else is listening
+if ss -ltn '( sport = :27017 )' 2>/dev/null | grep -q 27017; then
+  warn "Port 27017 already in use by a non-Docker process — investigate if MongoDB fails to start"
+fi
+if ss -ltn '( sport = :6379 )' 2>/dev/null | grep -q 6379; then
+  warn "Port 6379 already in use by a non-Docker process — investigate if Redis fails to start"
+fi
 
-  echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-${ver}.gpg ] \
-https://repo.mongodb.org/apt/ubuntu ${suite}/mongodb-org/${ver} multiverse" \
-    > "/etc/apt/sources.list.d/mongodb-org-${ver}.list"
+# ────────── MongoDB via Docker (7.0 — kernel-7.x safe) ──────────
+MONGO_IMAGE="mongo:7.0"
+MONGO_CONTAINER="relay-mongo"
+MONGO_VOLUME="relay-mongo-data"
 
-  apt-get update -qq
-  apt-get install -y -qq mongodb-org
+ensure_mongo() {
+  if docker ps -a --format '{{.Names}}' | grep -qx "$MONGO_CONTAINER"; then
+    local current
+    current=$(docker inspect --format='{{.Config.Image}}' "$MONGO_CONTAINER" 2>/dev/null || echo "")
+    if [[ "$current" != "$MONGO_IMAGE" ]]; then
+      log "Replacing MongoDB container (${current:-unknown} → $MONGO_IMAGE)"
+      docker rm -f "$MONGO_CONTAINER" >/dev/null 2>&1 || true
+    fi
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -qx "$MONGO_CONTAINER"; then
+    log "Starting MongoDB ($MONGO_IMAGE) in Docker…"
+    docker run -d \
+      --name "$MONGO_CONTAINER" \
+      --restart unless-stopped \
+      -p 127.0.0.1:27017:27017 \
+      -v "${MONGO_VOLUME}:/data/db" \
+      "$MONGO_IMAGE" >/dev/null
+  else
+    log "MongoDB container already running"
+  fi
+
+  log "Waiting for MongoDB to accept connections…"
+  for _ in {1..30}; do
+    docker exec "$MONGO_CONTAINER" mongosh --quiet --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1 && {
+      log "MongoDB ready on 127.0.0.1:27017"
+      return 0
+    }
+    sleep 1
+  done
+
+  err "MongoDB did not become ready in 30s. Last 40 log lines:"
+  docker logs --tail 40 "$MONGO_CONTAINER" >&2 || true
+  die "MongoDB failed to start."
 }
 
-if ! command -v mongod >/dev/null; then
-  case "$UBUNTU_CODENAME" in
-    jammy|noble)
-      MONGO_SUITE="$UBUNTU_CODENAME"
-      ;;
-    resolute|oracular|plucky|*)
-      # No native 8.0 repo for these yet — noble is ABI-compatible
-      MONGO_SUITE="noble"
-      [[ "$UBUNTU_CODENAME" == "resolute" ]] && \
-        warn "Ubuntu 26.04 (resolute) has no native MongoDB 8.0 repo — using noble packages."
-      ;;
-  esac
-  install_mongodb "$MONGO_SUITE"
-fi
-systemctl enable --now mongod
-log "MongoDB active: $(systemctl is-active mongod)"
+# ────────── Redis via Docker ──────────
+REDIS_IMAGE="redis:7-alpine"
+REDIS_CONTAINER="relay-redis"
+REDIS_VOLUME="relay-redis-data"
 
-# ────────── Redis ──────────
-if ! command -v redis-server >/dev/null; then
-  log "Installing Redis…"
-  apt-get install -y -qq redis-server
-fi
-systemctl enable --now redis-server
-log "Redis active: $(systemctl is-active redis-server)"
+ensure_redis() {
+  if docker ps -a --format '{{.Names}}' | grep -qx "$REDIS_CONTAINER"; then
+    local current
+    current=$(docker inspect --format='{{.Config.Image}}' "$REDIS_CONTAINER" 2>/dev/null || echo "")
+    if [[ "$current" != "$REDIS_IMAGE" ]]; then
+      log "Replacing Redis container (${current:-unknown} → $REDIS_IMAGE)"
+      docker rm -f "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+    fi
+  fi
+
+  if ! docker ps --format '{{.Names}}' | grep -qx "$REDIS_CONTAINER"; then
+    log "Starting Redis ($REDIS_IMAGE) in Docker…"
+    docker run -d \
+      --name "$REDIS_CONTAINER" \
+      --restart unless-stopped \
+      -p 127.0.0.1:6379:6379 \
+      -v "${REDIS_VOLUME}:/data" \
+      "$REDIS_IMAGE" \
+      redis-server --appendonly yes >/dev/null
+  else
+    log "Redis container already running"
+  fi
+
+  log "Waiting for Redis to answer PING…"
+  for _ in {1..20}; do
+    docker exec "$REDIS_CONTAINER" redis-cli ping 2>/dev/null | grep -q PONG && {
+      log "Redis ready on 127.0.0.1:6379"
+      return 0
+    }
+    sleep 1
+  done
+
+  err "Redis did not respond in 20s. Last 40 log lines:"
+  docker logs --tail 40 "$REDIS_CONTAINER" >&2 || true
+  die "Redis failed to start."
+}
+
+ensure_mongo
+ensure_redis
 
 # ────────── Clone repo ──────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
@@ -179,12 +277,12 @@ find_env_key() {
   echo "${found:-$fallback}"
 }
 
-MONGO_KEY=$(find_env_key server/.env.example 'MONGO_URI'      'MONGO_URI')
-REDIS_URL_KEY=$(find_env_key server/.env.example 'REDIS_URL'  '')
-REDIS_HOST_KEY=$(find_env_key server/.env.example 'REDIS_HOST' '')
-REDIS_PORT_KEY=$(find_env_key server/.env.example 'REDIS_PORT' '')
-BOT_KEY=$(find_env_key server/.env.example 'BOT_TOKEN'        'BOT_TOKEN')
-JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'       'JWT_SECRET')
+MONGO_KEY=$(find_env_key server/.env.example 'MONGO_URI'        'MONGO_URI')
+REDIS_URL_KEY=$(find_env_key server/.env.example 'REDIS_URL'    '')
+REDIS_HOST_KEY=$(find_env_key server/.env.example 'REDIS_HOST'  '')
+REDIS_PORT_KEY=$(find_env_key server/.env.example 'REDIS_PORT'  '')
+BOT_KEY=$(find_env_key server/.env.example 'BOT_TOKEN'          'BOT_TOKEN')
+JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'         'JWT_SECRET')
 ADMIN_ID_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*ID'   'ADMIN_TELEGRAM_ID')
 ADMIN_PASS_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*PASS' 'ADMIN_PASSWORD')
 
@@ -216,7 +314,7 @@ ADMIN_TG_ID=$(ask "Initial admin Telegram user ID")
 [[ "$ADMIN_TG_ID" =~ ^[0-9]+$ ]] || die "Admin Telegram ID must be numeric"
 ADMIN_PASSWORD=$(ask_secret "Initial admin password (min 8 chars)")
 [[ ${#ADMIN_PASSWORD} -ge 8 ]] || die "Admin password too short"
-SITE_URL=$(ask "Public site URL (used for canonical / OG tags)" "$SITE_URL_DEFAULT")
+SITE_URL=$(ask "Public site URL (canonical / OG tags)" "$SITE_URL_DEFAULT")
 BACKEND_API_URL=$(ask "Server-side backend API URL (localhost is correct)" "$BACKEND_API_URL_DEFAULT")
 
 # ────────── write .env files ──────────
@@ -231,8 +329,8 @@ set_env() {
   fi
 }
 
-cp -n server/.env.example       server/.env       2>/dev/null || true
-cp -n client/.env.local.example client/.env.local 2>/dev/null || true
+cp -n server/.env.example        server/.env        2>/dev/null || true
+cp -n client/.env.local.example  client/.env.local  2>/dev/null || true
 
 set_env server/.env "$MONGO_KEY" "$MONGO_URI"
 if [[ -n "$REDIS_URL_KEY" ]]; then
@@ -259,18 +357,16 @@ echo "                         BACKEND_API_URL=$BACKEND_API_URL"
 # ────────── install + build ──────────
 log "pnpm install"
 if ! pnpm install --frozen-lockfile; then
-  warn "Frozen lockfile install failed — retrying without --frozen-lockfile"
+  warn "Frozen lockfile failed — retrying without --frozen-lockfile"
   pnpm install
 fi
 
 log "Build @repo/shared"
 pnpm --filter @repo/shared build
 
-log "Setup admin"
-if ! pnpm --filter server setup-admin; then
-  warn "setup-admin exited non-zero. Re-run later with:"
-  warn "  cd $INSTALL_DIR && pnpm --filter server setup-admin"
-fi
+log "Setup admin (requires MongoDB — confirmed running above)"
+pnpm --filter server setup-admin \
+  || die "setup-admin failed. Check server/.env and 'docker logs relay-mongo'."
 
 log "Build all"
 pnpm build
@@ -284,6 +380,8 @@ fi
 SERVER_ENTRY="dist/main.js"
 [[ -f "server/$SERVER_ENTRY" ]] || SERVER_ENTRY="dist/src/main.js"
 [[ -f "server/$SERVER_ENTRY" ]] || SERVER_ENTRY=$(cd server && find dist -type f -name main.js | head -1)
+[[ -n "$SERVER_ENTRY" && -f "server/$SERVER_ENTRY" ]] \
+  || die "Cannot find NestJS entrypoint under server/dist/"
 
 cat > ecosystem.config.js <<EOF
 module.exports = {
@@ -310,10 +408,10 @@ module.exports = {
 EOF
 
 pm2 delete all >/dev/null 2>&1 || true
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup systemd -u root --hp /root | tail -1 | bash || \
-  warn "pm2 startup failed — run 'pm2 startup' manually to enable boot autostart."
+pm2 start ecosystem.config.js >/dev/null
+pm2 save       >/dev/null
+pm2 startup systemd -u root --hp /root | tail -1 | bash >/dev/null 2>&1 || \
+  warn "pm2 startup failed — run 'pm2 startup' manually to enable boot autostart"
 
 # ────────── firewall ──────────
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
@@ -326,63 +424,23 @@ if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewa
   firewall-cmd --reload >/dev/null 2>&1 || true
 fi
 
-# ────────── optional Nginx (default NO) ──────────
-echo
-warn "Nginx is optional. Skip it if you want direct http://IP:PORT access."
-if confirm "Configure Nginx reverse proxy (domain + port 80/443)?"; then
-  DOMAIN=$(ask "Domain (e.g. panel.example.com)")
-  command -v nginx >/dev/null || apt-get install -y -qq nginx
-
-  cat > /etc/nginx/sites-available/relay-console <<NGINX
-server {
-    listen 80;
-    server_name ${DOMAIN};
-    client_max_body_size 20M;
-
-    location / {
-        proxy_pass http://127.0.0.1:${CLIENT_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-NGINX
-
-  ln -sf /etc/nginx/sites-available/relay-console /etc/nginx/sites-enabled/relay-console
-  rm -f /etc/nginx/sites-enabled/default
-  nginx -t && systemctl reload nginx
-  log "Nginx configured for $DOMAIN"
-
-  if confirm "Obtain Let's Encrypt certificate?"; then
-    apt-get install -y -qq certbot python3-certbot-nginx
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      -m "admin@$DOMAIN" || warn "Certbot failed — run manually later"
-    warn "If you now serve via HTTPS, update SITE_URL in client/.env.local and rebuild:"
-    warn "  cd $INSTALL_DIR && pnpm --filter client build && pm2 restart relay-client"
-  fi
-fi
-
 # ────────── health check ──────────
 echo
 info "Waiting for services to come up…"
+backend_ok=0; frontend_ok=0
 for _ in {1..20}; do
-  curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/health" -o /dev/null && break
+  curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/health" -o /dev/null && { backend_ok=1; break; }
   sleep 1
 done
-if curl -sf "http://127.0.0.1:${BACKEND_PORT}/api/health" -o /dev/null; then
-  log "Backend OK  (127.0.0.1:${BACKEND_PORT}/api/health)"
-else
-  warn "Backend health check failed — see: pm2 logs relay-server --lines 100"
-fi
-if curl -sf "http://127.0.0.1:${CLIENT_PORT}/login" -o /dev/null; then
-  log "Frontend OK (127.0.0.1:${CLIENT_PORT}/login)"
-else
-  warn "Frontend health check failed — see: pm2 logs relay-client --lines 100"
-fi
+for _ in {1..20}; do
+  curl -sf "http://127.0.0.1:${CLIENT_PORT}/login" -o /dev/null && { frontend_ok=1; break; }
+  sleep 1
+done
+
+if [[ $backend_ok -eq 1 ]];  then log "Backend  OK  (127.0.0.1:${BACKEND_PORT}/api/health)"; else
+  err "Backend health check failed — run: pm2 logs relay-server --lines 80"; fi
+if [[ $frontend_ok -eq 1 ]]; then log "Frontend OK  (127.0.0.1:${CLIENT_PORT}/login)"; else
+  err "Frontend health check failed — run: pm2 logs relay-client --lines 80"; fi
 
 # ────────── final summary ──────────
 echo
@@ -393,10 +451,30 @@ echo " Persian login : http://${SERVER_IP}:${CLIENT_PORT}/fa/login"
 echo " Admin user    : admin"
 echo " Admin pass    : (the one you entered)"
 echo
-echo " Manage:  pm2 status | pm2 logs relay-server | pm2 restart all"
-echo " Env:     $INSTALL_DIR/server/.env  &  $INSTALL_DIR/client/.env.local"
+echo " Containers:"
+echo "   relay-mongo   ${MONGO_IMAGE}     volume: ${MONGO_VOLUME}   → 127.0.0.1:27017"
+echo "   relay-redis   ${REDIS_IMAGE}     volume: ${REDIS_VOLUME}   → 127.0.0.1:6379"
+echo
+echo " Manage:"
+echo "   pm2 status"
+echo "   pm2 logs relay-server"
+echo "   pm2 restart all"
+echo "   docker ps"
+echo "   docker logs relay-mongo / relay-redis"
+echo
+echo " DB shells:"
+echo "   docker exec -it relay-mongo mongosh relay-console"
+echo "   docker exec -it relay-redis redis-cli"
+echo
+echo " Env files:"
+echo "   $INSTALL_DIR/server/.env"
+echo "   $INSTALL_DIR/client/.env.local"
 echo
 echo " If the URL above does not load from another machine:"
 echo "   • Add inbound TCP ${CLIENT_PORT} in your cloud provider's firewall"
 echo "   • Check 'ufw status verbose' shows ${CLIENT_PORT}/tcp ALLOW"
 echo -e "${GREEN}═════════════════════════════════════════════════════${NC}"
+
+if [[ $backend_ok -ne 1 || $frontend_ok -ne 1 ]]; then
+  exit 1
+fi
