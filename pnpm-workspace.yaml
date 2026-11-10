@@ -4,6 +4,7 @@ packages:
   - "shared"
 allowBuilds:
   '@nestjs/core': true
+  '@parcel/watcher': false
   '@scarf/scarf': false
   '@swc/core': false
   bcrypt: true
