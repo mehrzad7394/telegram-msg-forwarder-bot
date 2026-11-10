@@ -397,7 +397,26 @@ creation entirely, comment out the block starting
 `# ────────── swap (low-memory servers) ──────────` in `install.sh`.
 
 ---
+## Backup & Restore `filters`
 
+`mongodump`/`mongorestore` are already inside the `relay-mongo` container.
+
+**Backup** to a single file on the host:
+
+```sh
+docker exec relay-mongo mongodump --db=relay-console --collection=filters \
+  --archive=/tmp/filters.archive --gzip \
+  && docker cp relay-mongo:/tmp/filters.archive /root/filters-$(date +%F).archive \
+  && docker exec relay-mongo rm -f /tmp/filters.archive
+```
+
+**Restore** (replaces the collection):
+
+```sh
+docker cp /root/filters-<date>.archive relay-mongo:/tmp/filters.archive
+docker exec relay-mongo mongorestore --archive=/tmp/filters.archive --gzip --drop
+docker exec relay-mongo rm -f /tmp/filters.archive
+```
 ## Reusing an Existing MongoDB or Redis
 
 **Option A — run the installer, then remove its containers.** Answer the URI
