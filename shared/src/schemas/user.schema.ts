@@ -5,7 +5,7 @@ export const UserProfileSchema = z.object({
   _id: z.string(),
   telegramId: z.string(),
   username: z.string(),
-  role: z.nativeEnum(UserRoles),
+  role: z.enum(UserRoles),
   isActive: z.boolean(),
   passwordHash: z.string().optional(),
 });
