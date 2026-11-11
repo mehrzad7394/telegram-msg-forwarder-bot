@@ -19,10 +19,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "setup-admin": "ts-node src/scripts/setup-admin.ts"
+    "setup-admin": "ts-node src/scripts/setup-admin.ts",
+    "login-teleproto": "ts-node src/scripts/login-teleproto.ts"
+
   },
   "dependencies": {
-    "@repo/shared": "workspace:*",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -32,6 +33,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.3",
+    "@repo/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
@@ -46,7 +48,8 @@
     "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "telegraf": "4.14.0"
+    "telegraf": "4.14.0",
+    "teleproto": "^1.233.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

@@ -11,6 +11,7 @@ import { FiltersModule } from './filters/filters.module';
 import { QueueModule } from './queue/queue.module';
 import { ChannelsModule } from './channels/channels.module';
 import { SettingModule } from './setting/setting.module';
+import { TeleprotoModule } from './teleproto/teleproto.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,6 +27,7 @@ import { SettingModule } from './setting/setting.module';
       },
     }),
     TelegramModule,
+    TeleprotoModule,
     AuthModule,
     UsersModule,
     FiltersModule,
