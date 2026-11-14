@@ -5,6 +5,7 @@ import { TelegramClient } from 'teleproto';
 import { NewMessage, NewMessageEvent } from 'teleproto/events';
 import { SourceChannelsService } from 'src/sourceChannels/sourceChannels.service';
 import { SettingService } from 'src/setting/setting.service';
+import { isListeningTime } from '@repo/shared';
 
 @Injectable()
 export class TeleprotoListenerService {
@@ -15,7 +16,7 @@ export class TeleprotoListenerService {
     @Inject('TELEPROTO_CLIENT') private readonly client: TelegramClient,
     private readonly telegramService: TelegramService,
     private readonly sourceChannelsService: SourceChannelsService,
-    private readonly settingService = SettingService,
+    private readonly settingService: SettingService,
   ) {}
 
   initializeListner() {
@@ -35,10 +36,12 @@ export class TeleprotoListenerService {
         // 3. Extract the channel's marked ID (e.g. "-1002590125715")
         const channelId = await this.client.getPeerId(msg.peerId, true);
 
+        const settings = this.settingService.getSettings();
+
         // 4. Check Valid time to receive message
-        if (!isListeningTime(settings)) {
-          return;
-        }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        if (!isListeningTime(settings)) return;
+
         // 5.Get active channels to receive message from.
         const channelLists = this.sourceChannelsService.getActiveChannels();
         if (!channelLists.includes(channelId)) return;
