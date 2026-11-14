@@ -24,17 +24,19 @@ export class SettingService {
     return this.settingModel.findOne({ key: 'global' }).exec();
   }
   async upsert(data: Partial<Setting>): Promise<Setting> {
-    const savedData = await this.settingModel.findOneAndUpdate(
-      {
-        key: 'global',
-      },
-      { $set: data },
-      {
-        new: true,
-        upsert: true, // creates if not exists
-        setDefaultsOnInsert: true,
-      },
-    ).exec();
+    const savedData = await this.settingModel
+      .findOneAndUpdate(
+        {
+          key: 'global',
+        },
+        { $set: data },
+        {
+          new: true,
+          upsert: true, // creates if not exists
+          setDefaultsOnInsert: true,
+        },
+      )
+      .exec();
     await this.loadSettings();
     return savedData;
   }

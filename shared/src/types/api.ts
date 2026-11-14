@@ -59,7 +59,9 @@ export type SourceChannelInput = Pick<
   "channelId" | "channelName"
 > &
   Partial<Pick<SourceChannel, "isActive">>;
-export type ChannelUpdate = Partial<Omit<ChannelInput, "channelId">>;
+export type SourceChannelUpdate = Partial<
+  Omit<SourceChannelInput, "channelId">
+>;
 export type FilterInput = Pick<
   Filter,
   "name" | "pattern" | "action" | "replacement"
@@ -70,6 +72,9 @@ export type FilterUpdate = Partial<FilterInput>;
 export interface SettingsInput {
   removeMention?: boolean;
   removeURL?: boolean;
+  timeZone?: string;
+  listeningStartTime?: string;
+  listeningEndTime?: string;
 }
 export type SettingsRecord = ApiRecord<SettingsInput & { key: "global" }>;
 
