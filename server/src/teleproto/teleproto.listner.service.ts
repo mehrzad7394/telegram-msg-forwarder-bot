@@ -4,6 +4,7 @@ import { RelayChannelPostPayload } from 'src/types/types';
 import { TelegramClient } from 'teleproto';
 import { NewMessage, NewMessageEvent } from 'teleproto/events';
 import { SourceChannelsService } from 'src/sourceChannels/sourceChannels.service';
+import { SettingService } from 'src/setting/setting.service';
 
 @Injectable()
 export class TeleprotoListenerService {
@@ -14,6 +15,7 @@ export class TeleprotoListenerService {
     @Inject('TELEPROTO_CLIENT') private readonly client: TelegramClient,
     private readonly telegramService: TelegramService,
     private readonly sourceChannelsService: SourceChannelsService,
+    private readonly settingService = SettingService,
   ) {}
 
   initializeListner() {
@@ -24,16 +26,22 @@ export class TeleprotoListenerService {
 
         const msg = event.message;
         if (!msg) return;
+        // 1. Skip messages with no text and no media
+        if (!msg.message && !msg.media) return;
 
-        // 1. Filter out non-channel messages (only interested in channel posts)
+        // 2. Filter out non-channel messages (only interested in channel posts)
         if (msg.peerId?.className !== 'PeerChannel') return;
 
-        // 2. Extract the channel's marked ID (e.g. "-1002590125715")
+        // 3. Extract the channel's marked ID (e.g. "-1002590125715")
         const channelId = await this.client.getPeerId(msg.peerId, true);
+
+        // 4. Check Valid time to receive message
+        if (!isListeningTime(settings)) {
+          return;
+        }
+        // 5.Get active channels to receive message from.
         const channelLists = this.sourceChannelsService.getActiveChannels();
         if (!channelLists.includes(channelId)) return;
-        // 3. Skip messages with no text and no media
-        if (!msg.message && !msg.media) return;
 
         const payload: RelayChannelPostPayload = {
           message: msg.message ?? '',

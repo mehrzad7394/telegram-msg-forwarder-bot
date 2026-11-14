@@ -7,3 +7,4 @@ export * from './utils/stringUtils';
 
 export * from './types/api';
 export * from './utils/filterUtils';
+export * from './utils/functions';

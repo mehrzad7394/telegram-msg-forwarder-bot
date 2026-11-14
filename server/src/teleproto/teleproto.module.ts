@@ -6,9 +6,10 @@ import { TeleprotoListenerService } from './teleproto.listner.service';
 import { TelegramModule } from 'src/telegram/telegram.module';
 import { SourceChannelsModule } from 'src/sourceChannels/sourceChannels.module';
 import { TelegramService } from 'src/telegram/telegram.service';
+import { SettingModule } from 'src/setting/setting.module';
 
 @Module({
-  imports: [TelegramModule, SourceChannelsModule],
+  imports: [TelegramModule, SourceChannelsModule, SettingModule],
   providers: [
     TeleprotoListenerService,
     {
