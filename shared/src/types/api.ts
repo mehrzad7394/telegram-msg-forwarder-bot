@@ -1,4 +1,11 @@
-import type { Channel, Filter, QueuedMessage, User, UserRoles } from "./types";
+import type {
+  Channel,
+  Filter,
+  QueuedMessage,
+  User,
+  UserRoles,
+  SourceChannel,
+} from "./types";
 
 type ApiRecord<T> = Omit<T, "id" | "createdAt"> & {
   _id: string;
@@ -15,6 +22,7 @@ export type ApiData<T> = ApiSuccess & { data: T };
 
 export type UserRecord = ApiRecord<User>;
 export type ChannelRecord = ApiRecord<Channel>;
+export type SourceChannelRecord = ApiRecord<SourceChannel>;
 export type FilterRecord = ApiRecord<Filter>;
 export type MessageRecord = ApiRecord<Omit<QueuedMessage, "userId">> & {
   userId: Pick<UserRecord, "_id" | "telegramId" | "username"> | string | null;
@@ -45,6 +53,12 @@ export type UserInput = Pick<User, "telegramId"> & {
 export type UserUpdate = Partial<Omit<UserInput, "telegramId">>;
 export type ChannelInput = Pick<Channel, "channelId" | "channelName"> &
   Partial<Pick<Channel, "botIsAdmin" | "isActive">>;
+export type ChannelUpdate = Partial<Omit<ChannelInput, "channelId">>;
+export type SourceChannelInput = Pick<
+  SourceChannel,
+  "channelId" | "channelName"
+> &
+  Partial<Pick<SourceChannel, "isActive">>;
 export type ChannelUpdate = Partial<Omit<ChannelInput, "channelId">>;
 export type FilterInput = Pick<
   Filter,

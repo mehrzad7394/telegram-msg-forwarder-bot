@@ -57,6 +57,13 @@ export interface Channel {
   isActive: boolean;
   createdAt: Date;
 }
+export interface SourceChannel {
+  id: string;
+  channelId: string;
+  channelName: string;
+  isActive: boolean;
+  createdAt: Date;
+}
 
 export interface QueuedMessage {
   id: string;

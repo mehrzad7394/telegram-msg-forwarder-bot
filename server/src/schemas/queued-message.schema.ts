@@ -8,8 +8,8 @@ export class QueuedMessage extends Document {
   @Prop({ required: true })
   processedMessage!: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
-  userId!: string;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+  userId?: string;
 
   @Prop({
     enum: ['queued', 'processing', 'sent', 'failed'],

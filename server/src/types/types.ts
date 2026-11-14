@@ -1,7 +1,4 @@
-export {
-  FilterActions,
-  UserRoles,
-} from '@repo/shared';
+export { FilterActions, UserRoles } from '@repo/shared';
 export type {
   Channel,
   Filter,
@@ -10,3 +7,9 @@ export type {
   User,
   UserProfile,
 } from '@repo/shared';
+
+export interface RelayChannelPostPayload {
+  telegramChannelId: string;
+  message: string;
+  messageId: number;
+}

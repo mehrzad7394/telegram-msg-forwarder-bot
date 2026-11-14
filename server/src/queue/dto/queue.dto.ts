@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class CreateQueueDTO {
   @IsString()
@@ -6,5 +6,6 @@ export class CreateQueueDTO {
   @IsString()
   processedMessage!: string;
   @IsString()
-  userId!: string;
+  @IsOptional()
+  userId?: string;
 }

@@ -1,58 +1,47 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnModuleInit,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { TelegramService } from 'src/telegram/telegram.service';
+import { RelayChannelPostPayload } from 'src/types/types';
 import { TelegramClient } from 'teleproto';
-import { NewMessage } from 'teleproto/events';
+import { NewMessage, NewMessageEvent } from 'teleproto/events';
+import { SourceChannelsService } from 'src/sourceChannels/sourceChannels.service';
 
 @Injectable()
-export class TeleprotoListenerService implements OnModuleInit, OnModuleDestroy {
+export class TeleprotoListenerService {
   private readonly logger = new Logger(TeleprotoListenerService.name);
-  private handler: (event: any) => Promise<void>;
+  private handler: (event: NewMessageEvent) => Promise<void> = async () => {};
 
   constructor(
     @Inject('TELEPROTO_CLIENT') private readonly client: TelegramClient,
+    private readonly telegramService: TelegramService,
+    private readonly sourceChannelsService: SourceChannelsService,
   ) {}
 
-  onModuleInit() {
-    // Define the handler function for new messages
-    this.handler = async (event: any) => {
+  initializeListner() {
+    //  the handler function for new messages
+    this.handler = async (event: NewMessageEvent) => {
       try {
+        if (!event.isChannel) return;
+
         const msg = event.message;
         if (!msg) return;
 
         // 1. Filter out non-channel messages (only interested in channel posts)
-        // teleproto's message.peerId determines the chat type
-        // if (msg.peerId?.className !== 'PeerChannel') return;
+        if (msg.peerId?.className !== 'PeerChannel') return;
 
-        // 2. Extract the channel's numeric ID
-        // const channelId = msg.peerId.channelId.toString();
+        // 2. Extract the channel's marked ID (e.g. "-1002590125715")
+        const channelId = await this.client.getPeerId(msg.peerId, true);
+        const channelLists = this.sourceChannelsService.getActiveChannels();
+        if (!channelLists.includes(channelId)) return;
+        // 3. Skip messages with no text and no media
+        if (!msg.message && !msg.media) return;
 
-        // 3. Query the database to confirm this is a channel you're tracking
-        // const channel = await this.channelModel.findOne({
-        //   telegramId: channelId,
-        //   enabled: true,
-        // });
+        const payload: RelayChannelPostPayload = {
+          message: msg.message ?? '',
+          messageId: msg.id,
+          telegramChannelId: channelId,
+        };
 
-        // if (!channel) return; // Skip channels you don't care about
-
-        // 4. Skip empty messages (pure service messages or messages with no text content)
-        // if (!msg.message && !msg.media) return;
-
-        this.logger.log(`Received post  ${msg.message?.slice(0, 50)}...`);
-
-        // 5. Push to the queue and let your existing QueueProcessor handle sending to the bot
-        // await this.queueService.enqueueIncoming({
-        //   channelId: channel._id.toString(),
-        //   telegramChannelId: channelId,
-        //   messageId: msg.id,
-        //   text: msg.message ?? '',
-        //   rawUpdate: this.serializeUpdate(msg),
-        //   receivedAt: new Date(),
-        // });
+        await this.telegramService.handleListnerMessage(payload);
       } catch (err) {
         this.logger.error(
           'Listener handler error',
@@ -62,11 +51,13 @@ export class TeleprotoListenerService implements OnModuleInit, OnModuleDestroy {
     };
 
     // Register the handler to the client
-    this.client.addEventHandler(this.handler, new NewMessage({}));
+    this.client.addEventHandler((event: NewMessageEvent) => {
+      void this.handler(event);
+    }, new NewMessage({}));
     this.logger.log('Teleproto listener started, waiting for channel posts...');
   }
 
-  async onModuleDestroy() {
+  async destroyListner() {
     if (this.handler) {
       this.client.removeEventHandler(this.handler, new NewMessage({}));
     }

@@ -47,17 +47,15 @@ export class QueueService {
     }
   }
   async getQueueStats() {
-    const [waiting, active, completed, failed, delayed] = await Promise.all([
+    const [waiting, active, failed, delayed] = await Promise.all([
       this.messageQueue.getWaiting(),
       this.messageQueue.getActive(),
-      this.messageQueue.getCompleted(),
       this.messageQueue.getFailed(),
       this.messageQueue.getDelayed(),
     ]);
     return {
       waiting: waiting.length,
       active: active.length,
-      completed: completed.length,
       failed: failed.length,
       delayed: delayed.length,
     };
@@ -65,7 +63,6 @@ export class QueueService {
   async getQueuedMessages(limit: number = 50) {
     return this.queuedMessageModel
       .find()
-      .populate('userId', 'telegramId username')
       .sort({ createdAt: -1 })
       .limit(limit)
       .exec();
