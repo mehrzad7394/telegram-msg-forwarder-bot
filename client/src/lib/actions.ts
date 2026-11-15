@@ -316,7 +316,12 @@ const commands = {
   activateChannel: ["/channels", "/set-active", "PUT", "destinationSet"],
   deleteSourceChannel: ["/sourceChannels", "", "DELETE", "channelDeleted"],
   activateSourceChannel: ["/sourceChannels", "/activate", "PUT", "sourceSet"],
-  deactiveSourceChannel: ["/sourceChannels", "/deactivate", "PUT", "sourceDeactivated"],
+  deactiveSourceChannel: [
+    "/sourceChannels",
+    "/deactivate",
+    "PUT",
+    "sourceDeactivated",
+  ],
   deleteFilter: ["/filters", "", "DELETE", "filterDeleted"],
   activateFilter: ["/filters", "/activate", "PUT", "filterActivated"],
   deactivateFilter: ["/filters", "/deactivate", "PUT", "filterDeactivated"],
@@ -353,6 +358,9 @@ export async function saveSettings(_previous: ActionResult, form: FormData) {
     const body: SettingsInput = {
       removeMention: checked(form, "removeMention"),
       removeURL: checked(form, "removeURL"),
+      listeningStartTime: field(form, "listeningStartTime"),
+      listeningEndTime: field(form, "listeningEndTime"),
+      timeZone: field(form, "timeZone"),
     };
     await request<SettingsRecord>("/setting", { method: "PUT", body });
     return { status: "success", message: t("settingsSaved") };

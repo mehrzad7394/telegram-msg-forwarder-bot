@@ -1,10 +1,10 @@
-import type { SettingsInput } from '@repo/shared';
+import { TIMEZONES, type SettingsInput } from '@repo/shared';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
-  IsTimeZone,
   Matches,
 } from 'class-validator';
 
@@ -50,7 +50,7 @@ export class UpdateSettingDto implements SettingsInput {
     default: 'Asia/Tehran',
   })
   @IsString()
-  @IsTimeZone()
+  @IsIn(TIMEZONES as unknown as string[])
   @IsOptional()
   timeZone?: string;
 }

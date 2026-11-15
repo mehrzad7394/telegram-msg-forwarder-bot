@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, LoaderCircle, TriangleAlert } from "lucide-react";
 import type { ActionResult } from "@/lib/api";
 import { reloadWithNotice, useFlashNotice } from "./action-flash";
+import { TIMEZONES } from "@repo/shared";
 
 export function ActionForm({
   action,
@@ -132,6 +133,61 @@ export function Toggle({
         <b>{label}</b>
         {description && <small>{description}</small>}
       </span>
+    </label>
+  );
+}
+export function TimeField({
+  label,
+  note,
+  name,
+  defaultValue,
+  required = false,
+}: {
+  label: string;
+  note?: string;
+  name: string;
+  defaultValue?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        type="time"
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+        step={60}
+      />
+      {note && <small>{note}</small>}
+    </label>
+  );
+}
+
+export function TimeZoneField({
+  label,
+  note,
+  name,
+  defaultValue = "UTC",
+  required = false,
+}: {
+  label: string;
+  note?: string;
+  name: string;
+  defaultValue?: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select name={name} defaultValue={defaultValue} required={required}>
+        {TIMEZONES.map((zone) => (
+          <option key={zone} value={zone}>
+            {zone}
+          </option>
+        ))}
+      </select>
+      {note && <small>{note}</small>}
     </label>
   );
 }

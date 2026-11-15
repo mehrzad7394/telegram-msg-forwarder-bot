@@ -15,18 +15,18 @@ export interface JWTPayload {
 }
 
 export enum UserRoles {
-  ADMIN = 'admin',
-  USER = 'user',
+  ADMIN = "admin",
+  USER = "user",
 }
 
 export enum FilterActions {
-  REMOVE_WORD = 'remove_word',
-  REPLACE_WORD = 'replace_word',
-  REMOVE_LINE = 'remove_line',
-  REPLACE_LINE = 'replace_line',
-  REGEX_REPLACE = 'regex_replace',
-  PREPEND_TEXT = 'prepend_text',
-  APPEND_TEXT = 'append_text',
+  REMOVE_WORD = "remove_word",
+  REPLACE_WORD = "replace_word",
+  REMOVE_LINE = "remove_line",
+  REPLACE_LINE = "replace_line",
+  REGEX_REPLACE = "regex_replace",
+  PREPEND_TEXT = "prepend_text",
+  APPEND_TEXT = "append_text",
 }
 
 export interface User {
@@ -70,6 +70,30 @@ export interface QueuedMessage {
   originalMessage: string;
   processedMessage: string;
   userId: string;
-  status: 'queued' | 'processing' | 'sent' | 'failed';
+  status: "queued" | "processing" | "sent" | "failed";
   createdAt: Date;
 }
+export const TIMEZONES = [
+  "Asia/Tehran",
+  "Asia/Dubai",
+  "Asia/Riyadh",
+  "Asia/Baghdad",
+  "Asia/Kabul",
+  "Asia/Karachi",
+  "Asia/Kolkata",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Europe/Istanbul",
+  "Europe/Moscow",
+  "Europe/Berlin",
+  "Europe/London",
+  "Europe/Paris",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "UTC",
+] as const;
+export type TimeZone = (typeof TIMEZONES)[number];

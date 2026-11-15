@@ -305,5 +305,10 @@
   "waiting": "Waiting",
   "waitingMessages": "Messages waiting",
   "wholeMessagePattern": "This action applies to the entire message. The pattern can be left blank.",
-  "workspace": "Workspace"
+  "workspace": "Workspace",
+  "listeningStartTime": "Listening start time",
+  "listeningEndTime": "Listening end time",
+  "listeningTimeNote": "24-hour format. The listener only relays posts between these times.",
+  "timeZone": "Time zone",
+  "timeZoneNote": "Used to interpret the listening window above."
 }

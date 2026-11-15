@@ -305,5 +305,10 @@
   "sourceChannelId": "شناسه کانال منبع",
   "sourceChannelName": "نام کانال منبع",
   "sourceChannelSaved": "تغییرات کانال منبع ذخیره شد.",
-  "sourceChannels": "کانال های منبع"
+  "sourceChannels": "کانال های منبع",
+  "listeningStartTime": "زمان شروع شنیدن",
+  "listeningEndTime": "زمان پایان شنیدن",
+  "listeningTimeNote": "قالب ۲۴ ساعته. شنونده فقط بین این دو زمان پست‌ها را ارسال می‌کند.",
+  "timeZone": "منطقه زمانی",
+  "timeZoneNote": "برای تفسیر بازه زمانی شنیدن استفاده می‌شود."
 }
