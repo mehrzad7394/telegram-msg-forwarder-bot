@@ -1,0 +1,127 @@
+import {
+  Badge,
+  Empty,
+  Metric,
+  PageHeading,
+  Panel,
+  StatusBadge,
+} from "@/components/ui";
+import { getPathname, Link } from "@/i18n/navigation";
+import { pageMetadata } from "@/lib/metadata";
+import {
+  getActiveSourceChannel,
+  getSourceChannels,
+  getSourceChannelStats,
+} from "@/lib/queries";
+import { Plus, RadioTower, Rss, Waypoints } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
+
+export async function generateMetadata() {
+  return pageMetadata(
+    "sourceChannel",
+    "/sourceChannels",
+    "sourceChannelsMetadata",
+  );
+}
+
+export default async function SourceChannelsPage() {
+  const [t, locale] = await Promise.all([getTranslations(), getLocale()]);
+  const [channels, active, stats] = await Promise.all([
+    getSourceChannels(),
+    getActiveSourceChannel(),
+    getSourceChannelStats(),
+  ]);
+  return (
+    <div className="page-stack">
+      <PageHeading
+        label={t("receivingRoute")}
+        title={t("channels")}
+        description={t("sourceChannelDescription")}
+        action={
+          <Link className="button button-primary" href="/sourceChannels/new">
+            <Plus size={18} />
+            {t("addChannel")}
+          </Link>
+        }
+      />
+      <div className="metric-grid metric-three">
+        <Metric
+          label={t("registeredChannels")}
+          value={stats.total}
+          hint={t("allChannels")}
+          icon={Rss}
+        />
+        <Metric
+          label={t("activeChannels")}
+          value={stats.active}
+          hint={""}
+          icon={Waypoints}
+          tone="blue"
+        />
+      </div>
+      <Panel title={t("channelsList")} subtitle={t("sourceChannelsListHelp")}>
+        {channels.length ? (
+          <div
+            className="table-scroll"
+            tabIndex={0}
+            aria-label={t("channelsList")}
+          >
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{t("channel")}</th>
+                  <th scope="col">{t("telegramId")}</th>
+                  <th scope="col">{t("status")}</th>
+                  <th scope="col">{t("actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {channels.map((channel) => (
+                  <tr key={channel._id}>
+                    <td>
+                      <div className="cell-identity">
+                        <span className="icon-tile tile-blue">
+                          <Rss size={16} />
+                        </span>
+                        <bdi>{channel.channelName}</bdi>
+                      </div>
+                    </td>
+                    <td>
+                      <code dir="ltr">{channel.channelId}</code>
+                    </td>
+                    <td>
+                      {active?._id === channel._id ? (
+                        <Badge tone="purple" dot>
+                          {t("currentDestination")}
+                        </Badge>
+                      ) : (
+                        <StatusBadge active={channel.isActive} />
+                      )}
+                    </td>
+                    <td>
+                      <a
+                        className="text-link"
+                        href={getPathname({
+                          href: `/sourceChannels/${channel._id}`,
+                          locale,
+                        })}
+                      >
+                        {t("manage")}
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty
+            icon={Rss}
+            title={t("channelsEmpty")}
+            description={t("sourceChannelsEmptyHelp")}
+          />
+        )}
+      </Panel>
+    </div>
+  );
+}

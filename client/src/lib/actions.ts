@@ -17,6 +17,8 @@ import {
   type UserUpdate,
   FilterActions,
   FilterSchema,
+  SourceChannelInput,
+  SourceChannelUpdate,
   UserRoles,
   requiresFilterReplacement,
   usesFilterPattern,
@@ -222,6 +224,43 @@ export async function saveChannel(
     };
   });
 }
+export async function saveSourceChannel(
+  id: string | null,
+  _previous: ActionResult,
+  form: FormData,
+) {
+  return mutate(async (t) => {
+    const channelName = required(
+      t,
+      field(form, "channelName").trim(),
+      t("channelName"),
+    );
+    const changes: SourceChannelUpdate = {
+      channelName,
+    };
+    const body: SourceChannelInput | SourceChannelUpdate = id
+      ? changes
+      : {
+          ...changes,
+          channelName,
+          channelId: required(
+            t,
+            field(form, "channelId").trim(),
+            t("channelId"),
+          ),
+        };
+    await request<ApiSuccess>(
+      id
+        ? entityPath("/sourceChannels", id, t("invalidRecordId"))
+        : "/sourceChannels",
+      { method: id ? "PUT" : "POST", body },
+    );
+    return {
+      status: "success",
+      message: id ? t("channelSaved") : t("channelCreated"),
+    };
+  });
+}
 
 export async function saveFilter(
   id: string | null,
@@ -275,6 +314,9 @@ const commands = {
   demoteUser: ["/users", "/demote", "PUT", "userDemoted"],
   deleteChannel: ["/channels", "", "DELETE", "channelDeleted"],
   activateChannel: ["/channels", "/set-active", "PUT", "destinationSet"],
+  deleteSourceChannel: ["/sourceChannels", "", "DELETE", "channelDeleted"],
+  activateSourceChannel: ["/sourceChannels", "/activate", "PUT", "sourceSet"],
+  deactiveSourceChannel: ["/sourceChannels", "/deactivate", "PUT", "sourceDeactivated"],
   deleteFilter: ["/filters", "", "DELETE", "filterDeleted"],
   activateFilter: ["/filters", "/activate", "PUT", "filterActivated"],
   deactivateFilter: ["/filters", "/deactivate", "PUT", "filterDeactivated"],
