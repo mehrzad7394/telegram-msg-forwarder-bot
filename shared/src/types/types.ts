@@ -27,6 +27,7 @@ export enum FilterActions {
   REGEX_REPLACE = "regex_replace",
   PREPEND_TEXT = "prepend_text",
   APPEND_TEXT = "append_text",
+  IGNORE_MESSAGE = "ignore_message",
 }
 
 export interface User {

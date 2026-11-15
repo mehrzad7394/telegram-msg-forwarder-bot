@@ -30,6 +30,7 @@
   "allMessages": "همهٔ پیام‌ها",
   "apiAndDelivery": "اتصال API و مسیر ارسال",
   "appendText": "افزودن به انتهای پیام",
+  "ignoreMessage": "نادیده گرفتن پیام",
   "available": "در دسترس",
   "avatarFallback": "؟",
   "backToChannels": "بازگشت به کانال‌ها",
@@ -310,5 +311,13 @@
   "listeningEndTime": "زمان پایان شنیدن",
   "listeningTimeNote": "قالب ۲۴ ساعته. شنونده فقط بین این دو زمان پست‌ها را ارسال می‌کند.",
   "timeZone": "منطقه زمانی",
-  "timeZoneNote": "برای تفسیر بازه زمانی شنیدن استفاده می‌شود."
+  "timeZoneNote": "برای تفسیر بازه زمانی شنیدن استفاده می‌شود.",
+  "sourceChannelsDeactivated": "کانال ها غیر فعال شدند",
+  "deactivateAll": "غیرفعال‌سازی همه",
+  "deactivating": "در حال غیرفعال‌سازی…",
+  "deactivateAllConfirm": "همه کانال‌های منبع غیرفعال شوند؟ ارسال پست‌ها تا زمانی که یکی را دوباره فعال نکنید متوقف می‌شود.",
+  "activateAll": "فعال‌سازی همه",
+  "activating": "در حال فعال‌سازی…",
+  "activateAllConfirm": "همه کانال‌های منبع فعال شوند؟ پست‌های همه آن‌ها ارسال خواهد شد.",
+  "sourceChannelsActivated": "همه کانال‌های منبع فعال شدند"
 }

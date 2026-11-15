@@ -117,6 +117,28 @@ export async function logout() {
   }
   await redirectInLocale("/login");
 }
+export async function activateAllSourceChannels(
+  _previous: ActionResult,
+  _form: FormData,
+): Promise<ActionResult> {
+  return mutate(async (t) => {
+    await request<ApiSuccess>("/sourceChannels/activate-all", {
+      method: "POST",
+    });
+    return { status: "success", message: t("sourceChannelsActivated") };
+  });
+}
+export async function deactivateAllSourceChannels(
+  _previous: ActionResult,
+  _form: FormData,
+): Promise<ActionResult> {
+  return mutate(async (t) => {
+    await request<ApiSuccess>("/sourceChannels/deactivate", {
+      method: "POST",
+    });
+    return { status: "success", message: t("sourceChannelsDeactivated") };
+  });
+}
 
 async function mutate(
   operation: (t: Translator) => Promise<ActionResult>,

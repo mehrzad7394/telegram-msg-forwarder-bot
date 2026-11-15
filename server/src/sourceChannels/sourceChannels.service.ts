@@ -86,6 +86,15 @@ export class SourceChannelsService {
   async deactivateChannel(id: string): Promise<SourceChannel> {
     return this.update(id, { isActive: false });
   }
+  async activateAll(): Promise<number> {
+    const result = await this.sourceChannelModel.updateMany(
+      { isActive: false },
+      { isActive: true },
+    );
+    this.logger.log(`Activated ${result.modifiedCount} source channel(s)`);
+    await this.loadChannels();
+    return result.modifiedCount;
+  }
   async deactivateAll(): Promise<void> {
     await this.sourceChannelModel.updateMany({}, { isActive: false });
     this.logger.log('All channels deactivated');

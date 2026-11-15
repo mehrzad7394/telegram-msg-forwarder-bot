@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/action-form";
 import {
   Badge,
   Empty,
@@ -7,13 +8,17 @@ import {
   StatusBadge,
 } from "@/components/ui";
 import { getPathname, Link } from "@/i18n/navigation";
+import {
+  activateAllSourceChannels,
+  deactivateAllSourceChannels,
+} from "@/lib/actions";
 import { pageMetadata } from "@/lib/metadata";
 import {
   getActiveSourceChannel,
   getSourceChannels,
   getSourceChannelStats,
 } from "@/lib/queries";
-import { Plus, RadioTower, Rss, Waypoints } from "lucide-react";
+import { Plus, Rss, Waypoints } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 export async function generateMetadata() {
@@ -38,13 +43,37 @@ export default async function SourceChannelsPage() {
         title={t("channels")}
         description={t("sourceChannelDescription")}
         action={
-          <Link className="button button-primary" href="/sourceChannels/new">
-            <Plus size={18} />
-            {t("addChannel")}
-          </Link>
+          <div className="flex flex-col gap-1 md:flex-row">
+            <Link className="button button-primary" href="/sourceChannels/new">
+              <Plus size={18} />
+              {t("addChannel")}
+            </Link>
+            {stats.active < stats.total && (
+              <ActionForm
+                action={activateAllSourceChannels}
+                label={t("activateAll")}
+                pendingLabel={t("activating")}
+                confirm={t("activateAllConfirm")}
+                variant="secondary"
+                className="contents"
+                showNotice={false}
+              />
+            )}
+            {!!stats?.active && (
+              <ActionForm
+                action={deactivateAllSourceChannels}
+                label={t("deactivateAll")}
+                pendingLabel={t("deactivating")}
+                confirm={t("deactivateAllConfirm")}
+                variant="danger"
+                className="inline"
+                showNotice={false}
+              />
+            )}
+          </div>
         }
       />
-      <div className="metric-grid metric-three">
+      <div className="grid-cols-1 metric-grid metric-three">
         <Metric
           label={t("registeredChannels")}
           value={stats.total}

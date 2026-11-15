@@ -30,6 +30,7 @@
   "allMessages": "All messages",
   "apiAndDelivery": "API connection and delivery destination",
   "appendText": "Append text",
+  "ignoreMessage": "Ignore Message",
   "available": "Available",
   "avatarFallback": "?",
   "backToChannels": "Back to channels",
@@ -310,5 +311,13 @@
   "listeningEndTime": "Listening end time",
   "listeningTimeNote": "24-hour format. The listener only relays posts between these times.",
   "timeZone": "Time zone",
-  "timeZoneNote": "Used to interpret the listening window above."
+  "timeZoneNote": "Used to interpret the listening window above.",
+  "sourceChannelsDeactivated": "Channels deactivated successfully",
+  "deactivateAll": "Deactivate all",
+  "deactivating": "Deactivating…",
+  "deactivateAllConfirm": "Deactivate every source channel? Relaying will stop for all of them until you re-enable one.",
+  "activateAll": "Activate all",
+  "activating": "Activating…",
+  "activateAllConfirm": "Activate every source channel? Posts from all of them will be relayed.",
+  "sourceChannelsActivated": "All source channels activated"
 }

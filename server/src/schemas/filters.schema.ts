@@ -7,7 +7,11 @@ export class Filter extends Document {
   @Prop({ required: true })
   name!: string;
 
-  @Prop({ required(this: Filter) { return usesFilterPattern(this.action); } })
+  @Prop({
+    required(this: Filter) {
+      return usesFilterPattern(this.action);
+    },
+  })
   pattern!: string;
 
   @Prop({ required: true, enum: FilterActions })

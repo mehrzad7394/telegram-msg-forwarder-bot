@@ -26,6 +26,7 @@ export function ActionForm({
   reloadOnSuccess,
   variant = "primary",
   className,
+  showNotice = true,
 }: {
   action: (previous: ActionResult, form: FormData) => Promise<ActionResult>;
   children?: ReactNode;
@@ -36,6 +37,7 @@ export function ActionForm({
   reloadOnSuccess?: boolean;
   variant?: "primary" | "secondary" | "danger";
   className?: string;
+  showNotice?: boolean;
 }) {
   const t = useTranslations();
   const [state, dispatch, pending] = useActionState(action, null);
@@ -77,7 +79,7 @@ export function ActionForm({
           {pending ? (pendingLabel ?? t("saving")) : label}
         </button>
       </fieldset>
-      <ActionNotice state={pending ? null : notice} />
+      {showNotice && <ActionNotice state={pending ? null : notice} />}
     </form>
   );
 }

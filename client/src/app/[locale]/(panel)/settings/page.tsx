@@ -14,7 +14,6 @@ export async function generateMetadata() {
 export default async function SettingsPage() {
   const t = await getTranslations();
   const [settings, profile] = await Promise.all([getSettings(), getProfile()]);
-  console.log(settings)
   return (
     <div className="page-stack">
       <PageHeading

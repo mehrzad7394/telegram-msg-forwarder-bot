@@ -10,7 +10,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UserRoles } from '@repo/shared';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -154,6 +154,46 @@ export class SourceChannelsController {
         success: true,
         message: 'Channel deactivated successfully',
         data: channel,
+      };
+    } catch (error) {
+      let errorMessage = 'Unknown error';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+  }
+  @Post('activate-all')
+  @ApiOperation({ summary: 'Activate all source channels' })
+  async activateAll() {
+    try {
+      const count = await this.sourceChannelsService.activateAll();
+      return {
+        success: true,
+        message: `Activated ${count} source channel(s)`,
+        data: { count },
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Unknown error';
+      throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
+    }
+  }
+  @Post('deactivate')
+  @ApiOperation({ summary: 'Deactivate all source channels' })
+  async deactivateAll() {
+    try {
+      await this.sourceChannelsService.deactivateAll();
+      return {
+        success: true,
+        message: 'All source channels deactivated successfully',
       };
     } catch (error) {
       let errorMessage = 'Unknown error';
