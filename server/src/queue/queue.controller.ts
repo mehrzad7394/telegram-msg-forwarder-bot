@@ -29,7 +29,7 @@ export class QueueController {
   @Post('cleanup')
   @Roles(UserRoles.ADMIN)
   async cleanupOldMessages(@Body() body: QueueCleanupInput) {
-    const result = await this.queueService.cleanupOldMessages(body.days || 7);
+    const result = await this.queueService.cleanupOldMessages(body.days);
     return {
       success: true,
       message: `Cleaned up ${result.deletedCount} old messages`,

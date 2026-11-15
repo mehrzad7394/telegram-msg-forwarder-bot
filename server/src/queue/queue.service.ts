@@ -70,15 +70,34 @@ export class QueueService {
   async cleanupOldMessages(
     days: number = 7,
   ): Promise<{ deletedCount: number }> {
+    if (days === 0) {
+      const before = await this.messageQueue.getJobCounts();
+      const drainedJobs =
+        (before.waiting ?? 0) +
+        (before.delayed ?? 0) +
+        (before.failed ?? 0) +
+        (before.completed ?? 0);
+
+      await this.messageQueue.empty(); // waiting + delayed
+      await this.messageQueue.clean(0, 'failed'); // failed
+      await this.messageQueue.clean(0, 'completed');
+      const result = await this.queuedMessageModel.deleteMany({});
+      this.logger.warn(
+        `PURGED ${result.deletedCount} Mongo messages and ~${drainedJobs} Bull jobs`,
+      );
+      return { deletedCount: drainedJobs || 0 };
+    }
+
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     const result = await this.queuedMessageModel.deleteMany({
       createdAt: { $lt: cutoffDate },
-      status: { $in: ['sent', 'failed'] },
     });
 
-    this.logger.log(`Cleaned up ${result.deletedCount} old messages`);
+    this.logger.log(
+      `Cleaned up ${result.deletedCount} messages older than ${days}d`,
+    );
     return { deletedCount: result.deletedCount || 0 };
   }
 }

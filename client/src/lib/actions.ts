@@ -392,7 +392,7 @@ export async function saveSettings(_previous: ActionResult, form: FormData) {
 export async function cleanupQueue(_previous: ActionResult, form: FormData) {
   return mutate(async (t) => {
     const days = Number(field(form, "days"));
-    if (!Number.isSafeInteger(days) || days < 1 || days > 36500)
+    if (!Number.isSafeInteger(days) || days < 0 || days > 36500)
       throw new ApiError(400, t("invalidDays"));
     const body: QueueCleanupInput = { days };
     const response = await request<ApiSuccess>("/queue/cleanup", {
