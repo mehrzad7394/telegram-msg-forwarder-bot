@@ -20,6 +20,12 @@ export class TeleprotoListenerService {
   ) {}
 
   initializeListner() {
+    if (!this.client) {
+      this.logger.warn(
+        'Teleproto client not configured (missing TELEGRAM_* env). Listener disabled.',
+      );
+      return;
+    }
     //  the handler function for new messages
     this.handler = async (event: NewMessageEvent) => {
       try {

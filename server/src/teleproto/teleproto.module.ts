@@ -16,15 +16,14 @@ import { SettingModule } from 'src/setting/setting.module';
       provide: 'TELEPROTO_CLIENT',
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
-        const sessionString =
-          configService.getOrThrow<string>('TELEGRAM_SESSION');
-        const apiId = Number(
-          configService.getOrThrow<string>('TELEGRAM_API_ID'),
-        );
-        const apiHash = configService.getOrThrow<string>('TELEGRAM_API_HASH');
-
+        const sessionString = configService.get<string>('TELEGRAM_SESSION');
+        const apiId = Number(configService.get<string>('TELEGRAM_API_ID'));
+        const apiHash = configService.get<string>('TELEGRAM_API_HASH');
+        if (!sessionString || !apiId || !apiHash) {
+          return null; // ← disabled, not an error
+        }
         const session = new StringSession(sessionString);
-        const client = new TelegramClient(session, apiId, apiHash, {
+        const client = new TelegramClient(session, Number(apiId), apiHash, {
           connectionRetries: 5,
         });
 
