@@ -6,7 +6,6 @@ import { Badge, dateTime, Empty } from "./ui";
 export const queueStates = [
   { key: "waiting", label: "waiting", color: "var(--purple)" },
   { key: "active", label: "processing", color: "#4d94ed" },
-  { key: "completed", label: "completed", color: "#1aab7d" },
   { key: "failed", label: "failed", color: "#ec6682" },
   { key: "delayed", label: "delayed", color: "#e6a74e" },
 ] as const;

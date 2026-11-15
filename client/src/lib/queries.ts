@@ -8,6 +8,8 @@ import type {
   MessageRecord,
   QueueStats,
   SettingsRecord,
+  SourceChannelRecord,
+  SourceChannelStats,
   UserRecord,
   UserStats,
 } from "@repo/shared";
@@ -45,6 +47,19 @@ export async function getChannelStats() {
 }
 export async function getChannel(id: string) {
   return getEntity<ChannelRecord>("/channels", id);
+}
+
+export async function  getSourceChannels() {
+  return readData<SourceChannelRecord[]>("/sourceChannels");
+}
+export async function getActiveSourceChannel() {
+  return readData<SourceChannelRecord[] | null>("/sourceChannels/active");
+}
+export async function getSourceChannelStats() {
+  return readData<SourceChannelStats>("/SourceChannels/stats");
+}
+export async function getSourceChannel(id: string) {
+  return getEntity<SourceChannelRecord>("/sourceChannels", id);
 }
 
 export async function getFilters() {

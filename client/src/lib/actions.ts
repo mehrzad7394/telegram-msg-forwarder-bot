@@ -17,6 +17,8 @@ import {
   type UserUpdate,
   FilterActions,
   FilterSchema,
+  SourceChannelInput,
+  SourceChannelUpdate,
   UserRoles,
   requiresFilterReplacement,
   usesFilterPattern,
@@ -114,6 +116,26 @@ export async function logout() {
     (await cookies()).delete(sessionCookie);
   }
   await redirectInLocale("/login");
+}
+export async function activateAllSourceChannels(): Promise<ActionResult> {
+// _previous: ActionResult,
+// _form: FormData,
+  return mutate(async (t) => {
+    await request<ApiSuccess>("/sourceChannels/activate-all", {
+      method: "POST",
+    });
+    return { status: "success", message: t("sourceChannelsActivated") };
+  });
+}
+export async function deactivateAllSourceChannels(): Promise<ActionResult> {
+// _previous: ActionResult,
+// _form: FormData,
+  return mutate(async (t) => {
+    await request<ApiSuccess>("/sourceChannels/deactivate", {
+      method: "POST",
+    });
+    return { status: "success", message: t("sourceChannelsDeactivated") };
+  });
 }
 
 async function mutate(
@@ -222,6 +244,43 @@ export async function saveChannel(
     };
   });
 }
+export async function saveSourceChannel(
+  id: string | null,
+  _previous: ActionResult,
+  form: FormData,
+) {
+  return mutate(async (t) => {
+    const channelName = required(
+      t,
+      field(form, "channelName").trim(),
+      t("channelName"),
+    );
+    const changes: SourceChannelUpdate = {
+      channelName,
+    };
+    const body: SourceChannelInput | SourceChannelUpdate = id
+      ? changes
+      : {
+          ...changes,
+          channelName,
+          channelId: required(
+            t,
+            field(form, "channelId").trim(),
+            t("channelId"),
+          ),
+        };
+    await request<ApiSuccess>(
+      id
+        ? entityPath("/sourceChannels", id, t("invalidRecordId"))
+        : "/sourceChannels",
+      { method: id ? "PUT" : "POST", body },
+    );
+    return {
+      status: "success",
+      message: id ? t("channelSaved") : t("channelCreated"),
+    };
+  });
+}
 
 export async function saveFilter(
   id: string | null,
@@ -275,6 +334,14 @@ const commands = {
   demoteUser: ["/users", "/demote", "PUT", "userDemoted"],
   deleteChannel: ["/channels", "", "DELETE", "channelDeleted"],
   activateChannel: ["/channels", "/set-active", "PUT", "destinationSet"],
+  deleteSourceChannel: ["/sourceChannels", "", "DELETE", "channelDeleted"],
+  activateSourceChannel: ["/sourceChannels", "/activate", "PUT", "sourceSet"],
+  deactiveSourceChannel: [
+    "/sourceChannels",
+    "/deactivate",
+    "PUT",
+    "sourceDeactivated",
+  ],
   deleteFilter: ["/filters", "", "DELETE", "filterDeleted"],
   activateFilter: ["/filters", "/activate", "PUT", "filterActivated"],
   deactivateFilter: ["/filters", "/deactivate", "PUT", "filterDeactivated"],
@@ -311,6 +378,9 @@ export async function saveSettings(_previous: ActionResult, form: FormData) {
     const body: SettingsInput = {
       removeMention: checked(form, "removeMention"),
       removeURL: checked(form, "removeURL"),
+      listeningStartTime: field(form, "listeningStartTime"),
+      listeningEndTime: field(form, "listeningEndTime"),
+      timeZone: field(form, "timeZone"),
     };
     await request<SettingsRecord>("/setting", { method: "PUT", body });
     return { status: "success", message: t("settingsSaved") };
@@ -320,7 +390,7 @@ export async function saveSettings(_previous: ActionResult, form: FormData) {
 export async function cleanupQueue(_previous: ActionResult, form: FormData) {
   return mutate(async (t) => {
     const days = Number(field(form, "days"));
-    if (!Number.isSafeInteger(days) || days < 1 || days > 36500)
+    if (!Number.isSafeInteger(days) || days < 0 || days > 36500)
       throw new ApiError(400, t("invalidDays"));
     const body: QueueCleanupInput = { days };
     const response = await request<ApiSuccess>("/queue/cleanup", {

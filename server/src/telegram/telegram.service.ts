@@ -11,7 +11,8 @@ import { UserRoles } from '@repo/shared';
 import { User } from 'src/schemas/user.schema';
 import { Channel } from 'src/schemas/channel.schema';
 import { SettingService } from 'src/setting/setting.service';
-
+import { RelayChannelPostPayload } from 'src/types/types';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 interface TelegramChannel {
   id: number;
   title?: string;
@@ -37,7 +38,7 @@ export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
   private bot: Telegraf<Context>;
   private isInitialized = false;
-
+  private readonly botReady = new EventEmitter2();
   private usersWaitingForChannel = new Set<string>();
   constructor(
     @Inject('TELEGRAF_BOT') bot: Telegraf<Context>,
@@ -50,6 +51,10 @@ export class TelegramService {
   ) {
     this.bot = bot;
   }
+
+  isBotInitialized = (): boolean => {
+    return this.isInitialized;
+  };
   private async setupBotCommands() {
     await this.bot.telegram.setMyCommands([
       { command: 'start', description: 'Start the bot' },
@@ -68,12 +73,16 @@ export class TelegramService {
       await this.settingService.loadSettings();
       this.isInitialized = true;
       this.logger.log('Bot initialized');
+      this.botReady.emit('telegram.bot.ready');
       await this.setupBotCommands();
       this.setupHandlers();
     } catch (error) {
       this.logger.error('Failed to initialize bot:', error);
       throw error;
     }
+  }
+  onBotReady(cb: () => void) {
+    this.botReady.on('telegram.bot.ready', cb);
   }
   async refreshCache(): Promise<void> {
     if (!this.isInitialized) {
@@ -329,6 +338,31 @@ export class TelegramService {
       await this.handleUserMessage(ctx, user, ctx.message.text);
     }
   }
+  async handleListnerMessage(payload: RelayChannelPostPayload) {
+    if (!payload.message) return;
+    const text = payload.message;
+
+    if (typeof text !== 'string') return;
+
+    const channel = await this.getActiveChannel();
+    if (!channel) {
+      this.logger.error('❌ No channel configured.');
+      return;
+    }
+    if (!channel.botIsAdmin) {
+      this.logger.error('❌ Bot is not admin in the channel.');
+      return;
+    }
+    try {
+      const processedMessage = this.messageProcessor.processMessage(text);
+      await this.queueService.addToQueue({
+        originalMessage: text,
+        processedMessage,
+      });
+    } catch (error) {
+      this.logger.error('Message processing error:', error);
+    }
+  }
 
   private async handleForwardedChannelMessage(ctx: Context, user: User) {
     // // Remove user from waiting list
@@ -429,7 +463,8 @@ export class TelegramService {
     try {
       const channel = await this.getActiveChannel();
       if (!channel) throw new Error('No Active Channel');
-      if (!channel.botIsAdmin) throw new Error('Bot is not admin in the active channel');
+      if (!channel.botIsAdmin)
+        throw new Error('Bot is not admin in the active channel');
       await this.bot.telegram.sendMessage(channel.channelId, message);
       return true;
     } catch (error) {

@@ -15,6 +15,7 @@ import {
   Settings2,
   SlidersHorizontal,
   UsersRound,
+  Rss,
   X,
 } from "lucide-react";
 import type { AuthProfile } from "@repo/shared";
@@ -24,6 +25,11 @@ import { Brand } from "./ui";
 const navigation = [
   { href: "/", label: "overview", icon: LayoutDashboard },
   { href: "/channels", label: "channels", icon: RadioTower },
+  {
+    href: "/sourceChannels",
+    label: "sourceChannels",
+    icon: Rss,
+  },
   { href: "/filters", label: "filters", icon: SlidersHorizontal },
   { href: "/queue", label: "messageQueue", icon: ListOrdered },
   { href: "/users", label: "users", icon: UsersRound },

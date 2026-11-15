@@ -8,4 +8,5 @@ export const filterActions = {
   [FilterActions.REGEX_REPLACE]: 'regexReplace',
   [FilterActions.PREPEND_TEXT]: 'prependText',
   [FilterActions.APPEND_TEXT]: 'appendText',
+  [FilterActions.IGNORE_MESSAGE]: 'ignoreMessage',
 } as const satisfies Record<FilterActions, string>;

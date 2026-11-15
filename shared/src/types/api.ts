@@ -1,4 +1,11 @@
-import type { Channel, Filter, QueuedMessage, User, UserRoles } from "./types";
+import type {
+  Channel,
+  Filter,
+  QueuedMessage,
+  User,
+  UserRoles,
+  SourceChannel,
+} from "./types";
 
 type ApiRecord<T> = Omit<T, "id" | "createdAt"> & {
   _id: string;
@@ -15,6 +22,7 @@ export type ApiData<T> = ApiSuccess & { data: T };
 
 export type UserRecord = ApiRecord<User>;
 export type ChannelRecord = ApiRecord<Channel>;
+export type SourceChannelRecord = ApiRecord<SourceChannel>;
 export type FilterRecord = ApiRecord<Filter>;
 export type MessageRecord = ApiRecord<Omit<QueuedMessage, "userId">> & {
   userId: Pick<UserRecord, "_id" | "telegramId" | "username"> | string | null;
@@ -46,6 +54,14 @@ export type UserUpdate = Partial<Omit<UserInput, "telegramId">>;
 export type ChannelInput = Pick<Channel, "channelId" | "channelName"> &
   Partial<Pick<Channel, "botIsAdmin" | "isActive">>;
 export type ChannelUpdate = Partial<Omit<ChannelInput, "channelId">>;
+export type SourceChannelInput = Pick<
+  SourceChannel,
+  "channelId" | "channelName"
+> &
+  Partial<Pick<SourceChannel, "isActive">>;
+export type SourceChannelUpdate = Partial<
+  Omit<SourceChannelInput, "channelId">
+>;
 export type FilterInput = Pick<
   Filter,
   "name" | "pattern" | "action" | "replacement"
@@ -56,6 +72,9 @@ export type FilterUpdate = Partial<FilterInput>;
 export interface SettingsInput {
   removeMention?: boolean;
   removeURL?: boolean;
+  timeZone?: string;
+  listeningStartTime?: string;
+  listeningEndTime?: string;
 }
 export type SettingsRecord = ApiRecord<SettingsInput & { key: "global" }>;
 
@@ -73,6 +92,10 @@ export interface ChannelStats {
   total: number;
   active: number;
   withAdmin: number;
+}
+export interface SourceChannelStats {
+  total: number;
+  active: number;
 }
 export interface QueueStats {
   waiting: number;

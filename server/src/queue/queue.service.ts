@@ -47,17 +47,15 @@ export class QueueService {
     }
   }
   async getQueueStats() {
-    const [waiting, active, completed, failed, delayed] = await Promise.all([
+    const [waiting, active, failed, delayed] = await Promise.all([
       this.messageQueue.getWaiting(),
       this.messageQueue.getActive(),
-      this.messageQueue.getCompleted(),
       this.messageQueue.getFailed(),
       this.messageQueue.getDelayed(),
     ]);
     return {
       waiting: waiting.length,
       active: active.length,
-      completed: completed.length,
       failed: failed.length,
       delayed: delayed.length,
     };
@@ -65,7 +63,6 @@ export class QueueService {
   async getQueuedMessages(limit: number = 50) {
     return this.queuedMessageModel
       .find()
-      .populate('userId', 'telegramId username')
       .sort({ createdAt: -1 })
       .limit(limit)
       .exec();
@@ -73,15 +70,34 @@ export class QueueService {
   async cleanupOldMessages(
     days: number = 7,
   ): Promise<{ deletedCount: number }> {
+    if (days === 0) {
+      const before = await this.messageQueue.getJobCounts();
+      const drainedJobs =
+        (before.waiting ?? 0) +
+        (before.delayed ?? 0) +
+        (before.failed ?? 0) +
+        (before.completed ?? 0);
+
+      await this.messageQueue.empty(); // waiting + delayed
+      await this.messageQueue.clean(0, 'failed'); // failed
+      await this.messageQueue.clean(0, 'completed');
+      const result = await this.queuedMessageModel.deleteMany({});
+      this.logger.warn(
+        `PURGED ${result.deletedCount} Mongo messages and ~${drainedJobs} Bull jobs`,
+      );
+      return { deletedCount: drainedJobs || 0 };
+    }
+
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     const result = await this.queuedMessageModel.deleteMany({
       createdAt: { $lt: cutoffDate },
-      status: { $in: ['sent', 'failed'] },
     });
 
-    this.logger.log(`Cleaned up ${result.deletedCount} old messages`);
+    this.logger.log(
+      `Cleaned up ${result.deletedCount} messages older than ${days}d`,
+    );
     return { deletedCount: result.deletedCount || 0 };
   }
 }

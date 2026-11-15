@@ -99,6 +99,7 @@ export class QueueProcessor {
   @OnQueueCompleted()
   onCompleted(job: Job): void {
     this.logger.log(`Completed job ${job.id} of type ${job.name}`);
+    this.queuedMessageModel.findByIdAndDelete(job.id);
   }
 
   @OnQueueFailed()
