@@ -93,6 +93,10 @@ export interface ChannelStats {
   active: number;
   withAdmin: number;
 }
+export interface SourceChannelStats {
+  total: number;
+  active: number;
+}
 export interface QueueStats {
   waiting: number;
   active: number;

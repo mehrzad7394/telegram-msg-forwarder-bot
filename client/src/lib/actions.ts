@@ -117,10 +117,9 @@ export async function logout() {
   }
   await redirectInLocale("/login");
 }
-export async function activateAllSourceChannels(
-  _previous: ActionResult,
-  _form: FormData,
-): Promise<ActionResult> {
+export async function activateAllSourceChannels(): Promise<ActionResult> {
+// _previous: ActionResult,
+// _form: FormData,
   return mutate(async (t) => {
     await request<ApiSuccess>("/sourceChannels/activate-all", {
       method: "POST",
@@ -128,10 +127,9 @@ export async function activateAllSourceChannels(
     return { status: "success", message: t("sourceChannelsActivated") };
   });
 }
-export async function deactivateAllSourceChannels(
-  _previous: ActionResult,
-  _form: FormData,
-): Promise<ActionResult> {
+export async function deactivateAllSourceChannels(): Promise<ActionResult> {
+// _previous: ActionResult,
+// _form: FormData,
   return mutate(async (t) => {
     await request<ApiSuccess>("/sourceChannels/deactivate", {
       method: "POST",

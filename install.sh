@@ -36,6 +36,28 @@ ask_secret() {
   echo >&2
   printf '%s' "$answer"
 }
+# ask_keep: shows current value (masked if secret); Enter keeps it, "-" clears it
+ask_keep() {
+  local prompt="$1" current="${2:-}" secret="${3:-0}" answer display
+  if [[ -n "$current" ]]; then
+    if [[ "$secret" -eq 1 ]]; then
+      display="<set>"
+    else
+      display="$current"
+    fi
+    read -rp "$prompt [$display] (Enter=keep, '-'=clear): " answer
+    if [[ -z "$answer" ]]; then
+      printf '%s' "$current"
+    elif [[ "$answer" == "-" ]]; then
+      printf ''
+    else
+      printf '%s' "$answer"
+    fi
+  else
+    read -rp "$prompt (blank=skip): " answer
+    printf '%s' "$answer"
+  fi
+}
 confirm() {
   local prompt="$1" answer
   read -rp "$prompt (y/N): " answer
@@ -316,6 +338,9 @@ BOT_KEY=$(find_env_key server/.env.example 'BOT_TOKEN'          'BOT_TOKEN')
 JWT_KEY=$(find_env_key server/.env.example 'JWT_SECRET'         'JWT_SECRET')
 ADMIN_ID_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*ID'   'ADMIN_TELEGRAM_ID')
 ADMIN_PASS_KEY=$(find_env_key server/.env.example 'ADMIN[A-Z0-9_]*PASS' 'ADMIN_PASSWORD')
+TG_API_ID_KEY=$(find_env_key server/.env.example 'TELEGRAM_API_ID'    'TELEGRAM_API_ID')
+TG_API_HASH_KEY=$(find_env_key server/.env.example 'TELEGRAM_API_HASH' 'TELEGRAM_API_HASH')
+TG_SESSION_KEY=$(find_env_key server/.env.example 'TELEGRAM_SESSION'  'TELEGRAM_SESSION')
 
 # ────────── verify ports before touching anything ──────────
 echo
@@ -327,6 +352,7 @@ check_port_free 6379  "Redis"   || \
 
 check_port_free "${CLIENT_PORT}" "frontend" || \
   die "Frontend port ${CLIENT_PORT} is already in use. Pass --port <other> or answer a different value."
+
 # ────────── interactive config ──────────
 echo
 info "Network configuration"
@@ -358,6 +384,70 @@ ADMIN_PASSWORD=$(ask_secret "Initial admin password (min 8 chars)")
 SITE_URL=$(ask "Public site URL (canonical / OG tags)" "$SITE_URL_DEFAULT")
 BACKEND_API_URL=$(ask "Server-side backend API URL (localhost is correct)" "$BACKEND_API_URL_DEFAULT")
 
+# ────────── Teleproto (optional channel listening) ──────────
+echo
+info "Channel listening (Teleproto user client)"
+echo "  Optional. Lets the bot relay posts from Telegram channels your"
+echo "  user account has joined. Forwarding works without it."
+echo
+
+# Read existing values (if re-running), so we can show them as defaults
+EXISTING_ENV="$INSTALL_DIR/server/.env"
+CUR_TG_ID=""; CUR_TG_HASH=""; CUR_TG_SESS=""
+if [[ -f "$EXISTING_ENV" ]]; then
+  CUR_TG_ID=$(grep -E "^${TG_API_ID_KEY}="   "$EXISTING_ENV" | cut -d= -f2- || true)
+  CUR_TG_HASH=$(grep -E "^${TG_API_HASH_KEY}=" "$EXISTING_ENV" | cut -d= -f2- || true)
+  CUR_TG_SESS=$(grep -E "^${TG_SESSION_KEY}="  "$EXISTING_ENV" | cut -d= -f2- || true)
+fi
+
+TG_ENABLED=0
+TELEGRAM_API_ID=""
+TELEGRAM_API_HASH=""
+TELEGRAM_SESSION=""
+
+# If values already exist, assume enabled unless user clears them.
+if [[ -n "$CUR_TG_ID" && -n "$CUR_TG_HASH" && -n "$CUR_TG_SESS" ]]; then
+  info "Existing Telegram user client detected."
+  if confirm "Keep channel listening enabled?"; then
+    TELEGRAM_API_ID=$(ask_keep   "Telegram api_id"    "$CUR_TG_ID"   0)
+    TELEGRAM_API_HASH=$(ask_keep "Telegram api_hash"  "$CUR_TG_HASH" 1)
+    TELEGRAM_SESSION=$(ask_keep  "Telegram session"   "$CUR_TG_SESS" 1)
+    if [[ -n "$TELEGRAM_API_ID" && -n "$TELEGRAM_API_HASH" && -n "$TELEGRAM_SESSION" ]]; then
+      TG_ENABLED=1
+    else
+      warn "Some values were cleared — channel listening will be disabled."
+    fi
+  else
+    warn "Channel listening will be disabled (existing values cleared on write)."
+  fi
+else
+  if confirm "Enable channel listening now?"; then
+    echo
+    echo "  Get api_id / api_hash from https://my.telegram.org → API development tools."
+    echo "  Generate the session string with the login script (see README)."
+    echo
+    while true; do
+      TELEGRAM_API_ID=$(ask "Telegram api_id (numeric)")
+      [[ "$TELEGRAM_API_ID" =~ ^[0-9]+$ ]] && break
+      warn "api_id must be numeric."
+    done
+    while true; do
+      TELEGRAM_API_HASH=$(ask "Telegram api_hash")
+      [[ -n "$TELEGRAM_API_HASH" ]] && break
+      warn "api_hash cannot be empty."
+    done
+    while true; do
+      TELEGRAM_SESSION=$(ask "Telegram session string (StringSession)")
+      [[ -n "$TELEGRAM_SESSION" ]] && break
+      warn "session string cannot be empty."
+    done
+    TG_ENABLED=1
+    log "Channel listening will be enabled."
+  else
+    warn "Skipping — channel listening will be disabled."
+  fi
+fi
+
 # ────────── write .env files ──────────
 set_env() {
   local file="$1" key="$2" value="$3"
@@ -387,11 +477,21 @@ set_env server/.env "$JWT_KEY"        "$JWT_SECRET"
 set_env server/.env "$ADMIN_ID_KEY"   "$ADMIN_TG_ID"
 set_env server/.env "$ADMIN_PASS_KEY" "$ADMIN_PASSWORD"
 
+# Teleproto: always write (empty values disable listening safely)
+set_env server/.env "$TG_API_ID_KEY"   "$TELEGRAM_API_ID"
+set_env server/.env "$TG_API_HASH_KEY" "$TELEGRAM_API_HASH"
+set_env server/.env "$TG_SESSION_KEY"  "$TELEGRAM_SESSION"
+
 set_env client/.env.local "SITE_URL"        "$SITE_URL"
 set_env client/.env.local "BACKEND_API_URL" "$BACKEND_API_URL"
 
 log "Env written:"
 echo "    server/.env        → $MONGO_KEY, Redis, $BOT_KEY, $JWT_KEY, $ADMIN_ID_KEY, $ADMIN_PASS_KEY"
+if [[ $TG_ENABLED -eq 1 ]]; then
+  echo "                         $TG_API_ID_KEY / $TG_API_HASH_KEY / $TG_SESSION_KEY  (channel listening enabled)"
+else
+  echo "                         $TG_API_ID_KEY / $TG_API_HASH_KEY / $TG_SESSION_KEY  (channel listening disabled)"
+fi
 echo "    client/.env.local  → SITE_URL=$SITE_URL"
 echo "                         BACKEND_API_URL=$BACKEND_API_URL"
 
@@ -512,6 +612,11 @@ echo " Frontend      : http://${SERVER_IP}:${CLIENT_PORT}/login"
 echo " Persian login : http://${SERVER_IP}:${CLIENT_PORT}/fa/login"
 echo " Admin user    : admin"
 echo " Admin pass    : (the one you entered)"
+if [[ $TG_ENABLED -eq 1 ]]; then
+  echo " Channel listen: enabled  (Telegram user client configured)"
+else
+  echo " Channel listen: disabled (re-run this installer to enable)"
+fi
 echo
 echo " Containers:"
 echo "   relay-mongo   ${MONGO_IMAGE}     volume: ${MONGO_VOLUME}   → 127.0.0.1:27017"

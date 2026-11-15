@@ -119,13 +119,7 @@ export default async function SourceChannelsPage() {
                       <code dir="ltr">{channel.channelId}</code>
                     </td>
                     <td>
-                      {active?._id === channel._id ? (
-                        <Badge tone="purple" dot>
-                          {t("currentDestination")}
-                        </Badge>
-                      ) : (
-                        <StatusBadge active={channel.isActive} />
-                      )}
+                      <StatusBadge active={channel.isActive} />
                     </td>
                     <td>
                       <a

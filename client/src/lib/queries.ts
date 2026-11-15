@@ -49,7 +49,7 @@ export async function getChannel(id: string) {
   return getEntity<ChannelRecord>("/channels", id);
 }
 
-export async function getSourceChannels() {
+export async function  getSourceChannels() {
   return readData<SourceChannelRecord[]>("/sourceChannels");
 }
 export async function getActiveSourceChannel() {
