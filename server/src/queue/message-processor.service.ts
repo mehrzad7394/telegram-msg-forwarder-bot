@@ -14,18 +14,27 @@ export class MessageProcessorService {
     private readonly settingsService: SettingService,
   ) {}
 
-  processMessage(text: string): string {
+  processMessage(text: string): string | null {
     let processedText = text;
-    //get active filters
     const filters = this.filtersService.getActiveFilters();
     const settings = this.settingsService.getSettings();
-    if (settings?.removeMention) {
-      processedText = this.removeMention(processedText);
-    }
-    if (settings?.removeURL) {
-      processedText = this.removeUrls(processedText);
-    }
+
+    // Check ignore filters FIRST — bail out before doing other work
     for (const filter of filters) {
+      if (
+        filter.action === FilterActions.IGNORE_MESSAGE &&
+        this.matchesIgnore(processedText, filter)
+      ) {
+        return null;
+      }
+    }
+
+    if (settings?.removeMention)
+      processedText = this.removeMention(processedText);
+    if (settings?.removeURL) processedText = this.removeUrls(processedText);
+
+    for (const filter of filters) {
+      if (filter.action === FilterActions.IGNORE_MESSAGE) continue; // already handled
       processedText = this.applyFilter(processedText, filter);
     }
     return processedText;
@@ -57,6 +66,17 @@ export class MessageProcessorService {
     } catch (error) {
       this.logger.error(`Error applying filter ${filter.name}:`, error);
       return text;
+    }
+  }
+  private matchesIgnore(text: string, filter: Filter): boolean {
+    try {
+      const pattern = filter.isRegex
+        ? new RegExp(filter.pattern, 'i')
+        : new RegExp(escapeRegExp(filter.pattern), 'i');
+      return pattern.test(text);
+    } catch (error) {
+      this.logger.error(`Invalid ignore regex: ${filter.pattern}`, error);
+      return false;
     }
   }
   private prependText(text: string, filter: Filter): string {
