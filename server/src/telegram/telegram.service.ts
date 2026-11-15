@@ -355,6 +355,9 @@ export class TelegramService {
     }
     try {
       const processedMessage = this.messageProcessor.processMessage(text);
+      if (processedMessage === null) {
+        return;
+      }
       await this.queueService.addToQueue({
         originalMessage: text,
         processedMessage,
@@ -424,6 +427,9 @@ export class TelegramService {
     }
     try {
       const processedMessage = this.messageProcessor.processMessage(text);
+      if (processedMessage === null) {
+        return;
+      }
       await this.queueService.addToQueue({
         originalMessage: text,
         processedMessage,
