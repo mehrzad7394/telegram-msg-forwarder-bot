@@ -12,7 +12,7 @@ export class Channel extends Document {
   @Prop({ default: false })
   botIsAdmin!: boolean;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   isActive!: boolean;
 
   @Prop()
@@ -20,3 +20,7 @@ export class Channel extends Document {
 }
 
 export const ChannelSchema = SchemaFactory.createForClass(Channel);
+ChannelSchema.index(
+  { isActive: 1 },
+  { unique: true, partialFilterExpression: { isActive: true } },
+);

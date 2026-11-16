@@ -109,7 +109,7 @@ export class TelegramService {
     const user = await this.usersService.findByTelegramId(telegramId);
     return user?.isActive ? user : null;
   }
-  private async getActiveChannel(): Promise<Channel | null> {
+  private getActiveChannel(): Channel | null {
     if (!this.isInitialized) {
       this.logger.warn('Bot not initialized yet!');
       return null;
@@ -223,7 +223,7 @@ export class TelegramService {
       await ctx.reply('❌ You are not authorized to use this bot.');
       return;
     }
-    const channel = await this.getActiveChannel();
+    const channel = this.getActiveChannel();
     if (!channel) {
       await ctx.reply(
         '❌ No channel configured. Please add channel first first.',
@@ -344,7 +344,7 @@ export class TelegramService {
 
     if (typeof text !== 'string') return;
 
-    const channel = await this.getActiveChannel();
+    const channel = this.getActiveChannel();
     if (!channel) {
       this.logger.error('❌ No channel configured.');
       return;
@@ -416,7 +416,7 @@ export class TelegramService {
     }
   }
   private async handleUserMessage(ctx: Context, user: User, text: string) {
-    const channel = await this.getActiveChannel();
+    const channel = this.getActiveChannel();
     if (!channel) {
       await ctx.reply('❌ No channel configured.');
       return;
@@ -467,7 +467,7 @@ export class TelegramService {
   }
   async sendToChannel(message: string): Promise<boolean> {
     try {
-      const channel = await this.getActiveChannel();
+      const channel = this.getActiveChannel();
       if (!channel) throw new Error('No Active Channel');
       if (!channel.botIsAdmin)
         throw new Error('Bot is not admin in the active channel');

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SourceChannel } from 'src/schemas/sourceChannel.schema';
@@ -8,7 +8,7 @@ import {
 } from './dto/sourceChannels.dto';
 
 @Injectable()
-export class SourceChannelsService {
+export class SourceChannelsService implements OnModuleInit {
   private readonly logger = new Logger(SourceChannelsService.name);
   private activeChannels: string[] = [];
   constructor(
@@ -56,6 +56,7 @@ export class SourceChannelsService {
     const savedChannel = await channel.save();
 
     this.logger.log(`Channel ${savedChannel.channelName} created!`);
+    await this.loadChannels();
     return savedChannel;
   }
   async update(
