@@ -5,6 +5,12 @@ It records **what has been built**, **why the non-obvious choices were made**,
 **where everything lives**, and **how to keep the installer, docs, and code
 consistent** when changing any of them.
 
+Companion documents: `README.md` is the user-facing guide (features, local
+development, deployment, operations). `AI_CONTEXT.md` is a complete project map
+for AI assistants — data model, flows, API surface, caches, gotchas, and change
+recipes. Read `AI_CONTEXT.md` before changing application code; read this file
+before touching deployment.
+
 Read this before touching `install.sh`, `README.md`, or the deployment sections
 of the docs.
 
@@ -38,7 +44,7 @@ The project is deployed as **four isolated processes** on a single Ubuntu host:
 
 ```
                     ┌──────────────────────────────────────┐
-   Browser ────────▶│ Next.js   relay-client  :3000        │  PM2
+   Browser ──────── │ Next.js   relay-client  :3000        │  PM2
    (public)         │  (public port, bound 0.0.0.0)        │
                     └────────────────┬─────────────────────┘
                                      │ server-side fetch
@@ -161,12 +167,11 @@ intentionally be reusing an external database. Warnings are the correct
 behaviour here.
 
 **PM2 safety**
-`pm2 delete all` removes **every** PM2 process the current user owns. The
-installer does this because on a dedicated server it's the cleanest reset, and
-because the only apps it ever creates are `relay-server` and `relay-client`.
-If the installer is ever refactored for shared-server safety, change this to
-`pm2 delete relay-server relay-client` and document the change in the README
-"Running Alongside Other Apps" section.
+When PM2 manages **other** apps, the installer lists them, asks for
+confirmation, and deletes **only** `relay-server` and `relay-client`. When PM2
+manages nothing else, it runs `pm2 delete all` for a clean reset. This keeps the
+installer safe on shared servers while still resetting stale `relay-*` entries.
+Keep the README "Running Alongside Other Apps" section in sync if this changes.
 
 ---
 
@@ -174,31 +179,41 @@ If the installer is ever refactored for shared-server safety, change this to
 
 Structure (top to bottom):
 
-1. Project overview
-2. Project structure table
-3. Local development
-4. **Production Install**
-   - TL;DR one-liner
-   - Automated install (what it provisions, flags, prompts, post-install)
-   - Manual install (numbered steps, 1–16 + optional Nginx)
-   - Running alongside other apps (ports, PM2, containers, swap)
-   - Reusing an existing MongoDB or Redis
-   - Reinstalling / updating
-   - Changing the public URL or port
-   - Optional Nginx + HTTPS
-   - Useful commands
-5. Troubleshooting
-6. Development guidelines (permissions, roles, security)
-7. API coverage table
+1. Title + feature summary + stack badges
+2. Table of contents
+3. What it does / Features
+4. How a message flows (ingestion → filters → queue → delivery)
+5. Architecture (diagram, stack table) and Repository layout
+6. Local development (prerequisites, Mongo/Redis, env, shared build,
+   setup-admin, `pnpm dev`, root scripts)
+7. First-run walkthrough and bot/listener setup
+8. Filter actions reference and Global settings
+9. Environment variables (server + client tables)
+10. HTTP API table
+11. **Production Install**
+    - Automated install (what it provisions, flags, prompts, post-install)
+    - Manual install (numbered steps 1–16)
+12. Running alongside other apps (ports, PM2, containers, swap)
+13. Backup and restore filters
+14. Reusing an existing MongoDB or Redis
+15. Reinstalling and updating
+16. Changing the public URL or port
+17. Optional Nginx + HTTPS
+18. Useful commands
+19. Troubleshooting
+20. Security notes
+21. Documentation index (README / AGENTS.md / AI_CONTEXT.md)
+22. License status
 
 **When changing the installer:**
 - Update the "What it installs" table in README if you add/remove a component.
-- Update the "Installer flags" table if you add a flag.
+- Update the "Flags" table if you add a flag.
 - Update the "Prompt values" table if you add/change a prompt.
 - Update the Manual Install steps in the matching place — the two paths must
   produce identical results. If they diverge, that's a bug.
 - Update "Running Alongside Other Apps" if you add a port, container name,
   or volume name.
+- Keep `AI_CONTEXT.md` §1 (topology) and §17 (deployment summary) consistent.
 
 ---
 
@@ -231,6 +246,9 @@ Regexes used:
 | JWT secret | `JWT_SECRET` | `JWT_SECRET` |
 | Admin Telegram ID | `ADMIN[A-Z0-9_]*ID` | `ADMIN_TELEGRAM_ID` |
 | Admin initial password | `ADMIN[A-Z0-9_]*PASS` | `ADMIN_PASSWORD` |
+| Telegram API ID (listener) | `TELEGRAM_API_ID` | `TELEGRAM_API_ID` |
+| Telegram API hash (listener) | `TELEGRAM_API_HASH` | `TELEGRAM_API_HASH` |
+| Telegram session (listener) | `TELEGRAM_SESSION` | `TELEGRAM_SESSION` |
 
 **Important:** the regexes for admin keys are anchored on `ADMIN` to avoid
 matching unrelated keys like `TELEGRAM_API_ID`. Any future change to admin
@@ -266,8 +284,8 @@ regressed.
 **Changing the installer (`install.sh`):**
 
 - [ ] Re-run the checklist in §3 "Why each non-obvious choice exists" — do any of those invariants break?
-- [ ] Update README §4 (What it installs / Flags / Prompts) if applicable
-- [ ] Update README Manual Install to match if the automated path changed
+- [ ] Update README "Production install" (What it installs / Flags / Prompts) if applicable
+- [ ] Update README "Manual install" to match if the automated path changed
 - [ ] If you add a container or volume, add it to §2 "Key invariants" and to README "Running Alongside Other Apps"
 - [ ] If you add a port, add it to the Ports table in README
 
@@ -276,10 +294,11 @@ regressed.
 - [ ] Check `find_env_key` regexes in §5 — do they still match?
 - [ ] Update the fallback in `install.sh` if the pattern can't match the new name
 - [ ] Update the "Prompt values" table in README if visible to users
+- [ ] Update the environment tables in README and `AI_CONTEXT.md` §13
 
 **Changing the Next.js build (e.g. `SITE_URL` handling):**
 
-- [ ] Verify README "Changing the Public URL or Port After Install" is still accurate
+- [ ] Verify README "Changing the public URL or port" is still accurate
 - [ ] Verify the installer's prompt wording still describes the consequence correctly
 
 **Adding a new service (e.g. a search index):**
@@ -295,7 +314,7 @@ regressed.
 
 - [ ] Update `install.sh` variables `CLIENT_PORT`, `BACKEND_PORT`, `MONGO_IMAGE`/`redis` port bindings
 - [ ] Update `ecosystem.config.js` template inside `install.sh`
-- [ ] Update README all occurrences — ports appear in §3 (ports table), §4 (post-install), §4 (verification), Troubleshooting
+- [ ] Update README all occurrences — ports appear in "Production install" (prompt values/post-install/verification), "Running alongside other apps" (Ports table), and "Troubleshooting"
 - [ ] Update §2 diagram in this file
 
 ---
